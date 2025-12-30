@@ -12,7 +12,7 @@ The goal for this project is to write a simple but effective tokenizer that can 
 
 [B compiler by Tsoding](https://github.com/tsoding/b/), motivation
 
-[stb\_c\_lexer.h by Sean Barrett](https://github.com/nothings/stb/stb\_c\_lexer.h/), inspiration
+[stb\_c\_lexer.h by Sean Barrett](https://github.com/nothings/stb/blob/master/stb_c_lexer.h), inspiration
 
 [Alexer by Tsoding](https://github.com/tsoding/alexer/), inspiration
 
