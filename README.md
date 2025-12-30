@@ -1,4 +1,4 @@
-# Slexer
+# Splexer
 Simple lexer for C-style languages, written in C.
 
 > [!WARNING]
