@@ -16,7 +16,5 @@ The goal for this project is to write a simple but effective tokenizer that can 
 
 [Alexer by Tsoding](https://github.com/tsoding/alexer/), inspiration
 
-[nob.h by Tsoding](https://github.com/tsoding/nob.h)
-
 ## LICENSE
 This project is licensed under the [MIT License](LICENSE).
