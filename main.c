@@ -13,6 +13,7 @@ enum Token {
     Right_Braces = '}',
     Newline = '\n',
     Semicolon = ';',
+    Equal = '=',
 };
 
 int main(int argc, char** argv) {
@@ -53,6 +54,9 @@ int main(int argc, char** argv) {
                     break;
                 case Right_Braces:
                     sp_sb_appendf(&ast, "} ");
+                    break;
+                case Equal:
+                    sp_sb_appendf(&ast, "= ");
                     break;
                 case Semicolon:
                 case Newline:
