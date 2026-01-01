@@ -200,5 +200,4 @@ static inline uint32_t hash_fnv(const char* data, const size_t bytes) {
         }                                                                                                              \
     } while (0)
 
-//TESTE
 #define sp_ht_insert(ht)\
