@@ -77,8 +77,8 @@ done:
 
     printf("parsed.count: %ld\n", parsed.count);
 
-    free(tok.data);
-    free(parsed.data);
-    free(ast.data);
+    sp_da_free(&tok);
+    sp_da_free(&parsed);
+    sp_da_free(&ast);
     fclose(f);
 }
