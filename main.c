@@ -168,7 +168,7 @@ lex:
             }
             break;
         default:
-            printf("Unreachable! What the fuck happened?\n");
+            sp_unreachable();
             break;
     }
 

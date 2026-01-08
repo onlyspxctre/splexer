@@ -10,6 +10,15 @@
 #define INNER_CONCAT(a, b) a##b
 #define CONCAT(a, b) INNER_CONCAT(a, b)
 
+#if defined(__GNUC__) || defined(__clang__)
+#define sp_unreachable()                                                                                               \
+    do {                                                                                                               \
+        fprintf(stderr, "[ERROR] <%s:%d> Unreachable segment reached!\n", __FILE__, __LINE__);                                   \
+        __builtin_unreachable();                                                                                       \
+    } while (0)
+
+#endif
+
 /*
  * Standard-issue dynamic array.
  *
@@ -56,8 +65,8 @@
 #define sp_da_free(da)                                                                                                 \
     do {                                                                                                               \
         free((da)->data);                                                                                              \
-        (da)->data     = NULL;                                                                                         \
-        (da)->count    = 0;                                                                                            \
+        (da)->data = NULL;                                                                                             \
+        (da)->count = 0;                                                                                               \
         (da)->capacity = 0;                                                                                            \
     } while (0)
 
@@ -102,28 +111,28 @@ __attribute__((format(printf, 2, 3))) int sp_sb_appendf(Sp_String_Builder* sb, c
 #define sp_ll_push_back(ll, element)                                                                                   \
     do {                                                                                                               \
         if ((ll)->head == NULL && (ll)->tail == NULL) { /* uninitialized state */                                      \
-            (ll)->head       = malloc(sizeof(*(ll)->head));                                                            \
+            (ll)->head = malloc(sizeof(*(ll)->head));                                                                  \
             (ll)->head->data = element;                                                                                \
-            (ll)->tail       = (ll)->head;                                                                             \
+            (ll)->tail = (ll)->head;                                                                                   \
         } else {                                                                                                       \
-            (ll)->tail->next       = malloc(sizeof(*(ll)->tail));                                                      \
+            (ll)->tail->next = malloc(sizeof(*(ll)->tail));                                                            \
             (ll)->tail->next->prev = (ll)->tail;                                                                       \
-            (ll)->tail             = (ll)->tail->next;                                                                 \
-            (ll)->tail->data       = element;                                                                          \
+            (ll)->tail = (ll)->tail->next;                                                                             \
+            (ll)->tail->data = element;                                                                                \
         }                                                                                                              \
     } while (0)
 
 #define sp_ll_push_front(ll, element)                                                                                  \
     do {                                                                                                               \
         if ((ll)->head == NULL && (ll)->tail == NULL) { /* uninitialized state */                                      \
-            (ll)->head       = malloc(sizeof(*(ll)->head));                                                            \
+            (ll)->head = malloc(sizeof(*(ll)->head));                                                                  \
             (ll)->head->data = element;                                                                                \
-            (ll)->tail       = (ll)->head;                                                                             \
+            (ll)->tail = (ll)->head;                                                                                   \
         } else {                                                                                                       \
-            (ll)->head->prev       = malloc(sizeof(*(ll)->tail));                                                      \
+            (ll)->head->prev = malloc(sizeof(*(ll)->tail));                                                            \
             (ll)->head->prev->next = (ll)->head;                                                                       \
-            (ll)->head             = (ll)->head->prev;                                                                 \
-            (ll)->head->data       = element;                                                                          \
+            (ll)->head = (ll)->head->prev;                                                                             \
+            (ll)->head->data = element;                                                                                \
         }                                                                                                              \
     } while (0)
 
@@ -231,7 +240,7 @@ uint32_t hash_fnv(const char* data, const size_t bytes) {
 #define sp_ht_rehash(ht, old_capacity)                                                                                 \
     do {                                                                                                               \
         sp_ht_node_ptr((ht)) old_nodes = (ht)->nodes;                                                                  \
-        (ht)->nodes                    = calloc((ht)->capacity, sizeof(*(ht)->nodes));                                 \
+        (ht)->nodes = calloc((ht)->capacity, sizeof(*(ht)->nodes));                                                    \
         for (size_t i = 0; i < old_capacity; ++i) {                                                                    \
             if (!old_nodes[i].key) {                                                                                   \
                 continue;                                                                                              \
@@ -285,7 +294,7 @@ uint32_t hash_fnv(const char* data, const size_t bytes) {
             sp_ht_reserve((ht), (ht)->capacity * 2);                                                                   \
         }                                                                                                              \
         __typeof__(e) element = e;                                                                                     \
-        size_t index          = sp_ht_hash((ht), (expected_key));                                                      \
+        size_t index = sp_ht_hash((ht), (expected_key));                                                               \
         sp_ht_node_insert((ht), index, (expected_key), element);                                                       \
     } while (0)
 
@@ -326,8 +335,8 @@ uint32_t hash_fnv(const char* data, const size_t bytes) {
             (ht)->nodes[i].key = NULL;                                                                                 \
         }                                                                                                              \
         free((ht)->nodes);                                                                                             \
-        (ht)->nodes    = NULL;                                                                                         \
-        (ht)->count    = 0;                                                                                            \
+        (ht)->nodes = NULL;                                                                                            \
+        (ht)->count = 0;                                                                                               \
         (ht)->capacity = 0;                                                                                            \
     } while (0)
 
