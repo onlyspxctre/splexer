@@ -25,7 +25,7 @@
 #define SP_DA_INIT_CAP 16
 #define sp_da_reserve(da, __expected__)                                                                                \
     do {                                                                                                               \
-        size_t expected = (__expected__);                                                                              \
+        const size_t expected = (__expected__);                                                                        \
         if ((da)->capacity < expected) {                                                                               \
             if ((da)->capacity == 0) {                                                                                 \
                 (da)->capacity = SP_DA_INIT_CAP;                                                                       \
@@ -49,13 +49,14 @@
  */
 #define sp_da_clear(da)                                                                                                \
     do {                                                                                                               \
-        memset((da)->data, 0, (da)->count);                                                                            \
+        memset((da)->data, 0, (da)->capacity * sizeof(*(da)->data));                                                   \
         (da)->count = 0;                                                                                               \
     } while (0)
 
 #define sp_da_free(da)                                                                                                 \
     do {                                                                                                               \
         free((da)->data);                                                                                              \
+        (da)->data     = NULL;                                                                                         \
         (da)->count    = 0;                                                                                            \
         (da)->capacity = 0;                                                                                            \
     } while (0)
@@ -210,7 +211,7 @@ uint32_t hash_fnv(const char* data, const size_t bytes) {
 #define SP_HT_LOAD_CAPACITY 0.75
 #define sp_ht_reserve(ht, __expected__)                                                                                \
     do {                                                                                                               \
-        size_t expected = (__expected__);                                                                              \
+        const size_t expected = (__expected__);                                                                        \
         if ((ht)->capacity < expected) {                                                                               \
             if ((ht)->capacity == 0) {                                                                                 \
                 (ht)->capacity = SP_HT_INIT_CAP;                                                                       \
@@ -322,8 +323,12 @@ uint32_t hash_fnv(const char* data, const size_t bytes) {
                 continue;                                                                                              \
             }                                                                                                          \
             free((ht)->nodes[i].key);                                                                                  \
+            (ht)->nodes[i].key = NULL;                                                                                 \
         }                                                                                                              \
         free((ht)->nodes);                                                                                             \
+        (ht)->nodes    = NULL;                                                                                         \
+        (ht)->count    = 0;                                                                                            \
+        (ht)->capacity = 0;                                                                                            \
     } while (0)
 
 #endif

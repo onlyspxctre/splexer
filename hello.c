@@ -6,7 +6,7 @@ int main() {
     a = 65;
     b = 66;
 
-    if (a == b) {
+    if (a <= b) {
         return 1;
     } else {
         return 0;
