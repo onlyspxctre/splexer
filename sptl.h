@@ -13,11 +13,66 @@
 #if defined(__GNUC__) || defined(__clang__)
 #define sp_unreachable()                                                                                               \
     do {                                                                                                               \
-        fprintf(stderr, "[ERROR] <%s:%d> Unreachable segment reached!\n", __FILE__, __LINE__);                                   \
+        fprintf(stderr, "[ERROR] <%s:%d> Unreachable segment reached!\n", __FILE__, __LINE__);                         \
         __builtin_unreachable();                                                                                       \
     } while (0)
 
 #endif
+
+#define KNRM "\x1B[0m"  // Normal/Reset
+#define KRED "\x1B[31m" // Red Foreground
+#define KGRN "\x1B[32m" // Green Foreground
+#define KYEL "\x1B[33m" // Yellow Foreground
+#define KBLU "\x1B[34m" // Blue Foreground
+#define KMAG "\x1B[35m" // Magenta Foreground
+#define KCYN "\x1B[36m" // Cyan Foreground
+#define KWHT "\x1B[37m" // White Foreground
+
+#ifdef SP_VERBOSE_LOGS
+#define __fprintf_verbose(fd, format) fprintf(fd, format)
+#else
+#define __fprintf_verbose(fd, format) return 0
+#endif
+
+typedef enum {
+    SP_INFO,
+    SP_WARNING,
+    SP_ERROR,
+    SP_VERBOSE,
+} Sp_Log_Level;
+
+__attribute__((format(printf, 2, 3))) int sp_log(Sp_Log_Level log_level, const char* format, ...) {
+    va_list arg;
+    FILE* fd;
+
+    switch (log_level) {
+        case SP_INFO:
+            fd = stdout;
+            fprintf(fd, "[" KGRN "INFO" KNRM "] ");
+            break;
+        case SP_VERBOSE:
+            fd = stdout;
+            __fprintf_verbose(fd, "[" KCYN "INFO" KNRM "] ");
+            break;
+        case SP_WARNING:
+            fd = stderr;
+            fprintf(fd, "[" KYEL "WARNING" KNRM "] ");
+            break;
+        case SP_ERROR:
+            fd = stderr;
+            fprintf(fd, "[" KRED "ERROR" KNRM "] ");
+            break;
+    }
+
+    va_start(arg, format);
+
+    int count = vfprintf(fd, format, arg);
+
+    va_end(arg);
+    putchar('\n');
+
+    return count;
+}
 
 /*
  * Standard-issue dynamic array.
@@ -51,6 +106,11 @@
         sp_da_reserve((da), (da)->count + 1);                                                                          \
         (da)->data[(da)->count] = element;                                                                             \
         ++(da)->count;                                                                                                 \
+    } while (0)
+
+#define sp_da_pop(da)                                                                                                  \
+    do {                                                                                                               \
+        --(da)->count;                                                                                                 \
     } while (0)
 
 /*

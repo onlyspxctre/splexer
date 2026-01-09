@@ -33,46 +33,58 @@ enum Operators {
 
 char* keywords[__TOK_KEYWORD_OPTIONS__] = {
     [TOK_KEYWORD_TypeInt] = "int",
-    [TOK_KEYWORD_Const]   = "const",
-    [TOK_KEYWORD_Static]  = "static",
-    [TOK_KEYWORD_Return]  = "return",
-    [TOK_KEYWORD_Extern]  = "extern",
+    [TOK_KEYWORD_Const] = "const",
+    [TOK_KEYWORD_Static] = "static",
+    [TOK_KEYWORD_Return] = "return",
+    [TOK_KEYWORD_Extern] = "extern",
 };
 char* operators[__TOK_OP_OPTIONS__] = {
-    [TOK_OP_Left_Paren]   = "(",
-    [TOK_OP_Right_Paren]  = ")",
-    [TOK_OP_Left_Braces]  = "{",
+    [TOK_OP_Left_Paren] = "(",
+    [TOK_OP_Right_Paren] = ")",
+    [TOK_OP_Left_Braces] = "{",
     [TOK_OP_Right_Braces] = "}",
-    [TOK_OP_Newline]      = "\n",
-    [TOK_OP_Semicolon]    = ";",
-    [TOK_OP_Comma]        = ",",
-    [TOK_OP_Period]       = ".",
-    [TOK_OP_Assign]       = "=",
-    [TOK_OP_Equality]     = "==",
-    [TOK_OP_Less]         = "<",
-    [TOK_OP_Greater]      = ">",
-    [TOK_OP_Asterisk]     = "*",
+    [TOK_OP_Newline] = "\n",
+    [TOK_OP_Semicolon] = ";",
+    [TOK_OP_Comma] = ",",
+    [TOK_OP_Period] = ".",
+    [TOK_OP_Assign] = "=",
+    [TOK_OP_Equality] = "==",
+    [TOK_OP_Less] = "<",
+    [TOK_OP_Greater] = ">",
+    [TOK_OP_Asterisk] = "*",
 };
 
 Sp_Hash_Table(int) Int_HT;
 
 typedef enum {
-    LEXER_STATE_Idle = 0,
-    LEXER_STATE_Keyword,
-    LEXER_STATE_Operator,
-    LEXER_STATE_Terminate,
+    AST_KEYWORD,
+    AST_OPERATOR,
+    AST_IDENTIFIER,
+} Sp_Lexer_Ast_Type;
+
+typedef struct {
+    Sp_Lexer_Ast_Type type;
+    Sp_String_Builder str;
+} Sp_Lexer_Ast_Node;
+
+Sp_Dynamic_Array(Sp_Lexer_Ast_Node) Sp_Lexer_Ast;
+
+typedef enum {
+    SPLEXER_IDLE,
+    SPLEXER_ALPHANUM,
+    SPLEXER_OPERATOR,
+    SPLEXER_TERMINATE,
 } Sp_Lexer_State;
 
 typedef struct {
-
     FILE* f;
 
     Int_HT keyword_table;
     Int_HT operator_table;
     Sp_String_Builder tok;
-    Sp_String_Builder ast;
 
     Sp_Lexer_State state;
+    Sp_Lexer_Ast ast;
 } Sp_Lexer;
 
 /*
@@ -107,9 +119,9 @@ void splexer_init(Sp_Lexer* splexer, const char* path, char** keywords, char** o
  */
 Sp_Lexer_State splexer_eval_state(char c) {
     if (splexer_char_is_valid(c)) {
-        return LEXER_STATE_Keyword;
+        return SPLEXER_ALPHANUM;
     } else {
-        return LEXER_STATE_Operator;
+        return SPLEXER_OPERATOR;
     }
 }
 
@@ -120,11 +132,11 @@ void splexer_tokenize(Sp_Lexer* splexer) {
 
     while (fread(buffer, 1, 1, splexer->f) != 0) {
         switch (splexer->state) {
-            case LEXER_STATE_Idle:
+            case SPLEXER_IDLE:
                 splexer->state = splexer_eval_state(*buffer);
                 sp_sb_appendf(&splexer->tok, "%s", buffer);
                 break;
-            case LEXER_STATE_Terminate:
+            case SPLEXER_TERMINATE:
                 fprintf(stderr, "The lexer has terminated! Cannot keep tokenizing...\n");
                 return;
             default:
@@ -142,27 +154,52 @@ void splexer_tokenize(Sp_Lexer* splexer) {
 
 lex:
     switch (splexer->state) {
-        case LEXER_STATE_Keyword:
+        case SPLEXER_ALPHANUM:
             kw_query = sp_ht_get(&splexer->keyword_table, splexer->tok.data);
             if (kw_query) {
-                sp_sb_appendf(&splexer->ast, "\'%s\' ", kw_query->key);
+                Sp_Lexer_Ast_Node node = (Sp_Lexer_Ast_Node) {
+                    .type = AST_KEYWORD,
+                    .str = {0},
+                };
+                sp_sb_appendf(&node.str, "\'%s\' ", kw_query->key);
+
+                sp_da_push(&splexer->ast, node);
             } else {
-                sp_sb_appendf(&splexer->ast, "Identifier ");
+                Sp_Lexer_Ast_Node node = (Sp_Lexer_Ast_Node) {
+                    .type = AST_IDENTIFIER,
+                    .str = {0},
+                };
+                sp_sb_appendf(&node.str, "\'%s\' ", splexer->tok.data);
+
+                sp_da_push(&splexer->ast, node);
             }
             break;
-        case LEXER_STATE_Operator:
+        case SPLEXER_OPERATOR:
             for (size_t i = 0; i < splexer->tok.count; ++i) {
                 *buffer = splexer->tok.data[i];
                 if (*buffer == ' ') {
                     continue;
                 }
+
                 op_query = sp_ht_get(&splexer->operator_table, buffer);
 
                 if (op_query) {
-                    sp_sb_appendf(&splexer->ast, "\'%s\' ", op_query->key);
+                    Sp_Lexer_Ast_Node node = (Sp_Lexer_Ast_Node) {
+                        .type = AST_OPERATOR,
+                        .str = {0},
+                    };
+
+                    if (*buffer == '\n') {
+                        sp_sb_appendf(&node.str, "\n");
+                    }
+                    else {
+                        sp_sb_appendf(&node.str, "\'%s\' ", op_query->key);
+                    }
+
+                    sp_da_push(&splexer->ast, node);
                 } else {
                     printf("op_query returned NULL! Could not find \"%s\"\nTerminating...\n", buffer);
-                    splexer->state = LEXER_STATE_Terminate;
+                    splexer->state = SPLEXER_TERMINATE;
                     return;
                 }
             }
@@ -173,7 +210,7 @@ lex:
     }
 
     sp_da_clear(&splexer->tok);
-    splexer->state = feof(splexer->f) ? LEXER_STATE_Terminate : LEXER_STATE_Idle;
+    splexer->state = feof(splexer->f) ? SPLEXER_TERMINATE : SPLEXER_IDLE;
 }
 
 void splexer_destroy(Sp_Lexer* splexer) {
@@ -184,6 +221,9 @@ void splexer_destroy(Sp_Lexer* splexer) {
     sp_ht_free(&splexer->operator_table);
 
     sp_da_free(&splexer->tok);
+    for (size_t i = 0; i < splexer->ast.count; ++i) {
+        sp_da_free(&splexer->ast.data[i].str);
+    }
     sp_da_free(&splexer->ast);
 }
 
@@ -197,7 +237,7 @@ int main(int argc, char** argv) {
 
     // Sp_String_Builder parsed = {0};
 
-    while (splexer.state != LEXER_STATE_Terminate) {
+    while (splexer.state != SPLEXER_TERMINATE) {
         splexer_tokenize(&splexer);
     }
 
@@ -205,7 +245,9 @@ int main(int argc, char** argv) {
     // printf("%s<EOF>\n", parsed.data);
     // printf("\n------------------------------------------------\n");
     printf("IR (Ast):\n");
-    printf("%s", splexer.ast.data);
+    for (size_t i = 0; i < splexer.ast.count; ++i) {
+        printf("%s", splexer.ast.data[i].str.data);
+    }
     // printf("\n------------------------------------------------\n");
     // printf("parsed.count: %ld\n", parsed.count);
 
