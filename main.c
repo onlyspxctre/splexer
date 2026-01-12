@@ -5,6 +5,7 @@
 
 enum Keywords {
     TOK_KW_TypeInt,
+    TOK_KW_TypeFloat,
     TOK_KW_Const,
     TOK_KW_Static,
     TOK_KW_Return,
@@ -39,6 +40,7 @@ enum Operators {
 
 char* keywords[] = {
     [TOK_KW_TypeInt] = "int",
+    [TOK_KW_TypeFloat] = "float",
     [TOK_KW_Const] = "const",
     [TOK_KW_Static] = "static",
     [TOK_KW_Return] = "return",
@@ -71,9 +73,12 @@ char* operators[] = {
 Sp_Hash_Table(int) Int_HT;
 
 typedef enum {
+    AST_UNKNOWN,
     AST_KEYWORD,
     AST_OPERATOR,
     AST_IDENTIFIER,
+    AST_INTLITERAL,
+    AST_FLOATLITERAL,
 } Sp_Lexer_Ast_Type;
 
 typedef struct {
@@ -83,10 +88,14 @@ typedef struct {
 
 Sp_Dynamic_Array(Sp_Lexer_Ast_Node) Sp_Lexer_Ast;
 
+typedef struct {
+    Sp_String_Builder sb;
+    Sp_Lexer_Ast_Type type;
+} Sp_Lexer_Token;
+
 typedef enum {
     SPLEXER_IDLE,
-    SPLEXER_ALPHANUM,
-    SPLEXER_OPERATOR,
+    SPLEXER_TOKENIZE,
     SPLEXER_TERMINATE,
 } Sp_Lexer_State;
 
@@ -95,7 +104,8 @@ typedef struct {
 
     Int_HT kw_table;
     Int_HT op_table;
-    Sp_String_Builder tok;
+
+    Sp_Lexer_Token tok;
 
     Sp_Lexer_State state;
     Sp_Lexer_Ast ast;
@@ -114,12 +124,14 @@ int splexer_char_is_valid(char c) {
 void splexer_init(Sp_Lexer* splexer, const char* path, char** keywords, char** operators) {
     for (int i = 0; i < TOK_KW_Unknown; ++i) {
         if (!keywords[i]) {
+            sp_log(SP_WARNING, "No matching token found in kw_table! Skipping...");
             continue;
         }
         sp_ht_insert(&splexer->kw_table, keywords[i], i);
     }
     for (int i = 0; i < TOK_OP_Unknown; ++i) {
         if (!operators[i]) {
+            sp_log(SP_WARNING, "No matching token found in op_table! Skipping...");
             continue;
         }
         sp_ht_insert(&splexer->op_table, operators[i], i);
@@ -131,12 +143,68 @@ void splexer_init(Sp_Lexer* splexer, const char* path, char** keywords, char** o
 /*
  * Evaluate the lexer's state based on the given character.
  */
-Sp_Lexer_State splexer_eval_state(char c) {
+Sp_Lexer_Ast_Type splexer_ast_eval_type(char c) {
     if (splexer_char_is_valid(c)) {
-        return SPLEXER_ALPHANUM;
+        return AST_IDENTIFIER;
     } else {
-        return SPLEXER_OPERATOR;
+        return AST_OPERATOR;
     }
+}
+
+int splexer_token_append(Sp_Lexer_Token* token, char c) {
+    switch (token->type) {
+        case AST_IDENTIFIER:
+            if (!splexer_char_is_valid(c)) {
+                return 0; /* False */
+            }
+            break;
+        case AST_INTLITERAL:
+            if (!isdigit(c)) {
+                if (c == '.') {
+                    token->type = AST_FLOATLITERAL;
+                }
+                else if (splexer_char_is_valid(c)) {
+                    token->type = AST_IDENTIFIER;
+                }
+                else {
+                    return 0;
+                }
+            }
+            break;
+        case AST_FLOATLITERAL: /* TODO: suffixes to determine literal type */
+            if (!isdigit(c)) {
+                // Cannot append non-digit character after decimal point on a float literal
+                return 0;
+            }
+            break;
+        case AST_OPERATOR:
+            if (splexer_char_is_valid(c)) {
+                return 0;
+            }
+            break;
+        case AST_UNKNOWN:
+            if (isdigit(c)) {
+                token->type = AST_INTLITERAL;
+            }
+            else if (splexer_char_is_valid(c)) {
+                token->type = AST_IDENTIFIER;
+            }
+            else {
+                token->type = AST_OPERATOR;
+            }
+            break;
+        default:
+            sp_unreachable();
+            break;
+    }
+
+    sp_sb_appendf(&token->sb, "%c", c);
+    return 1;
+}
+
+void splexer_token_clear(Sp_Lexer_Token* token) {
+    sp_da_clear(&token->sb);
+    token->type = AST_UNKNOWN;
 }
 
 void splexer_tokenize(Sp_Lexer* splexer) {
@@ -150,29 +218,28 @@ void splexer_tokenize(Sp_Lexer* splexer) {
                 if (*buffer == ' ') {
                     continue;
                 }
-                splexer->state = splexer_eval_state(*buffer);
-                sp_sb_appendf(&splexer->tok, "%s", buffer);
+                splexer->state = SPLEXER_TOKENIZE;
+                splexer_token_append(&splexer->tok, *buffer);
                 break;
-            case SPLEXER_TERMINATE:
-                fprintf(stderr, "The lexer has terminated! Cannot keep tokenizing...\n");
-                return;
-            default:
-                if (splexer->state != splexer_eval_state(*buffer)) {
+            case SPLEXER_TOKENIZE:
+                /* TODO: Revamp the system yet again, smart type evaluation and float literal handling */
+                if (!splexer_token_append(&splexer->tok, *buffer)) {
                     if (*buffer != ' ') {
                         fseek(splexer->f, -1, SEEK_CUR);
                     }
                     goto lex;
                 }
-
-                sp_sb_appendf(&splexer->tok, "%s", buffer);
                 break;
+            case SPLEXER_TERMINATE:
+                sp_log(SP_ERROR, "splexer_tokenize cannot continue as the lexer as terminated!");
+                return;
         }
     }
 
 lex:
-    switch (splexer->state) {
-        case SPLEXER_ALPHANUM:
-            kw_query = sp_ht_get(&splexer->kw_table, splexer->tok.data);
+    switch (splexer->tok.type) {
+        case AST_IDENTIFIER:
+            kw_query = sp_ht_get(&splexer->kw_table, splexer->tok.sb.data);
             if (kw_query) {
                 Sp_Lexer_Ast_Node node = (Sp_Lexer_Ast_Node) {
                     .type = AST_KEYWORD,
@@ -186,14 +253,25 @@ lex:
                     .type = AST_IDENTIFIER,
                     .str = {0},
                 };
-                sp_sb_appendf(&node.str, "\'%s\' ", splexer->tok.data);
+                sp_sb_appendf(&node.str, "\'%s\' ", splexer->tok.sb.data);
 
                 sp_da_push(&splexer->ast, node);
             }
             goto done;
-        case SPLEXER_OPERATOR:
-            while (splexer->tok.count) {
-                op_query = sp_ht_get(&splexer->op_table, splexer->tok.data);
+        case AST_INTLITERAL:
+        case AST_FLOATLITERAL:
+            1 + 2; // TODO: Remove
+            Sp_Lexer_Ast_Node node = (Sp_Lexer_Ast_Node) {
+                .type = splexer->tok.type,
+                .str = {0},
+            };
+            sp_sb_appendf(&node.str, "\'%s\' ", splexer->tok.sb.data);
+
+            sp_da_push(&splexer->ast, node);
+            goto done;
+        case AST_OPERATOR:
+            while (splexer->tok.sb.count) {
+                op_query = sp_ht_get(&splexer->op_table, splexer->tok.sb.data);
 
                 if (op_query) {
                     Sp_Lexer_Ast_Node node = (Sp_Lexer_Ast_Node) {
@@ -211,13 +289,12 @@ lex:
                     goto done;
                 } else {
                     /* If the current token is NOT found, we pop one character off the end and attempt again */
-                    sp_da_pop(&splexer->tok);
+                    sp_da_pop(&splexer->tok.sb);
                     fseek(splexer->f, -1, SEEK_CUR);
                 }
             }
 
             /* The operator does not exist */
-
             sp_log(SP_ERROR, "splexer_tokenize could not find any matching operator! Terminating...");
             splexer->state = SPLEXER_TERMINATE;
             return;
@@ -227,7 +304,7 @@ lex:
     }
 
 done:
-    sp_da_clear(&splexer->tok);
+    splexer_token_clear(&splexer->tok);
     splexer->state = feof(splexer->f) ? SPLEXER_TERMINATE : SPLEXER_IDLE;
 }
 
@@ -238,7 +315,7 @@ void splexer_destroy(Sp_Lexer* splexer) {
     sp_ht_free(&splexer->kw_table);
     sp_ht_free(&splexer->op_table);
 
-    sp_da_free(&splexer->tok);
+    sp_da_free(&splexer->tok.sb);
     for (size_t i = 0; i < splexer->ast.count; ++i) {
         sp_da_free(&splexer->ast.data[i].str);
     }
@@ -265,6 +342,12 @@ int main(int argc, char** argv) {
     printf("IR (Ast):\n");
     for (size_t i = 0; i < splexer.ast.count; ++i) {
         printf("%s", splexer.ast.data[i].str.data);
+        if (splexer.ast.data[i].type == AST_INTLITERAL) {
+            printf("(int literal) ");
+        }
+        else if (splexer.ast.data[i].type == AST_FLOATLITERAL) {
+            printf("(float literal) ");
+        }
     }
     // printf("\n------------------------------------------------\n");
     // printf("parsed.count: %ld\n", parsed.count);

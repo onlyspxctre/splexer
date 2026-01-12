@@ -2,9 +2,9 @@ extern int printf(const char* format, ...);
 
 int main() {
     int a;
-    int b;
+    float b;
     a = 65;
-    b = 66;
+    b = 66.0;
 
     if (a == b) {
         a + b;
