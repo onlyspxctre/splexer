@@ -4,17 +4,15 @@
 #include "sptl.h"
 
 enum Keywords {
-    TOK_KEYWORD_Unknown = 0,
-    TOK_KEYWORD_TypeInt,
-    TOK_KEYWORD_Const,
-    TOK_KEYWORD_Static,
-    TOK_KEYWORD_Return,
-    TOK_KEYWORD_Extern,
-    __TOK_KEYWORD_OPTIONS__,
+    TOK_KW_TypeInt,
+    TOK_KW_Const,
+    TOK_KW_Static,
+    TOK_KW_Return,
+    TOK_KW_Extern,
+    TOK_KW_Unknown,
 };
 
 enum Operators {
-    TOK_OP_Unknown = 0,
     TOK_OP_Left_Paren,
     TOK_OP_Right_Paren,
     TOK_OP_Left_Braces,
@@ -25,22 +23,28 @@ enum Operators {
     TOK_OP_Period,
     TOK_OP_Assign,
     TOK_OP_Equality,
+    TOK_OP_Inequality,
     TOK_OP_Less,
     TOK_OP_Greater,
     TOK_OP_LessEq,
     TOK_OP_GreaterEq,
+    TOK_OP_Plus,
+    TOK_OP_Minus,
     TOK_OP_Asterisk,
-    __TOK_OP_OPTIONS__,
+    TOK_OP_Slash,
+    TOK_OP_Increment,
+    TOK_OP_Decrement,
+    TOK_OP_Unknown,
 };
 
-char* keywords[__TOK_KEYWORD_OPTIONS__] = {
-    [TOK_KEYWORD_TypeInt] = "int",
-    [TOK_KEYWORD_Const] = "const",
-    [TOK_KEYWORD_Static] = "static",
-    [TOK_KEYWORD_Return] = "return",
-    [TOK_KEYWORD_Extern] = "extern",
+char* keywords[] = {
+    [TOK_KW_TypeInt] = "int",
+    [TOK_KW_Const] = "const",
+    [TOK_KW_Static] = "static",
+    [TOK_KW_Return] = "return",
+    [TOK_KW_Extern] = "extern",
 };
-char* operators[__TOK_OP_OPTIONS__] = {
+char* operators[] = {
     [TOK_OP_Left_Paren] = "(",
     [TOK_OP_Right_Paren] = ")",
     [TOK_OP_Left_Braces] = "{",
@@ -51,11 +55,17 @@ char* operators[__TOK_OP_OPTIONS__] = {
     [TOK_OP_Period] = ".",
     [TOK_OP_Assign] = "=",
     [TOK_OP_Equality] = "==",
+    [TOK_OP_Inequality] = "!=",
     [TOK_OP_Less] = "<",
     [TOK_OP_Greater] = ">",
     [TOK_OP_LessEq] = "<=",
     [TOK_OP_GreaterEq] = ">=",
+    [TOK_OP_Plus] = "+",
+    [TOK_OP_Minus] = "-",
     [TOK_OP_Asterisk] = "*",
+    [TOK_OP_Slash] = "/",
+    [TOK_OP_Increment] = "++",
+    [TOK_OP_Decrement] = "--",
 };
 
 Sp_Hash_Table(int) Int_HT;
@@ -83,8 +93,8 @@ typedef enum {
 typedef struct {
     FILE* f;
 
-    Int_HT keyword_table;
-    Int_HT operator_table;
+    Int_HT kw_table;
+    Int_HT op_table;
     Sp_String_Builder tok;
 
     Sp_Lexer_State state;
@@ -102,17 +112,17 @@ int splexer_char_is_valid(char c) {
 }
 
 void splexer_init(Sp_Lexer* splexer, const char* path, char** keywords, char** operators) {
-    for (int i = 0; i < __TOK_KEYWORD_OPTIONS__; ++i) {
+    for (int i = 0; i < TOK_KW_Unknown; ++i) {
         if (!keywords[i]) {
             continue;
         }
-        sp_ht_insert(&splexer->keyword_table, keywords[i], i);
+        sp_ht_insert(&splexer->kw_table, keywords[i], i);
     }
-    for (int i = 0; i < __TOK_OP_OPTIONS__; ++i) {
+    for (int i = 0; i < TOK_OP_Unknown; ++i) {
         if (!operators[i]) {
             continue;
         }
-        sp_ht_insert(&splexer->operator_table, operators[i], i);
+        sp_ht_insert(&splexer->op_table, operators[i], i);
     }
 
     splexer->f = fopen(path, "rb");
@@ -130,8 +140,8 @@ Sp_Lexer_State splexer_eval_state(char c) {
 }
 
 void splexer_tokenize(Sp_Lexer* splexer) {
-    sp_ht_node_ptr(&splexer->keyword_table) kw_query;
-    sp_ht_node_ptr(&splexer->operator_table) op_query;
+    sp_ht_node_ptr(&splexer->kw_table) kw_query;
+    sp_ht_node_ptr(&splexer->op_table) op_query;
     char buffer[2] = "\0";
 
     while (fread(buffer, 1, 1, splexer->f) != 0) {
@@ -162,7 +172,7 @@ void splexer_tokenize(Sp_Lexer* splexer) {
 lex:
     switch (splexer->state) {
         case SPLEXER_ALPHANUM:
-            kw_query = sp_ht_get(&splexer->keyword_table, splexer->tok.data);
+            kw_query = sp_ht_get(&splexer->kw_table, splexer->tok.data);
             if (kw_query) {
                 Sp_Lexer_Ast_Node node = (Sp_Lexer_Ast_Node) {
                     .type = AST_KEYWORD,
@@ -183,7 +193,7 @@ lex:
             goto done;
         case SPLEXER_OPERATOR:
             while (splexer->tok.count) {
-                op_query = sp_ht_get(&splexer->operator_table, splexer->tok.data);
+                op_query = sp_ht_get(&splexer->op_table, splexer->tok.data);
 
                 if (op_query) {
                     Sp_Lexer_Ast_Node node = (Sp_Lexer_Ast_Node) {
@@ -225,8 +235,8 @@ void splexer_destroy(Sp_Lexer* splexer) {
     fclose(splexer->f);
     splexer->f = NULL;
 
-    sp_ht_free(&splexer->keyword_table);
-    sp_ht_free(&splexer->operator_table);
+    sp_ht_free(&splexer->kw_table);
+    sp_ht_free(&splexer->op_table);
 
     sp_da_free(&splexer->tok);
     for (size_t i = 0; i < splexer->ast.count; ++i) {
