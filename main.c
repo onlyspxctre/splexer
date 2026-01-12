@@ -10,6 +10,10 @@ enum Keywords {
     TOK_KW_Static,
     TOK_KW_Return,
     TOK_KW_Extern,
+    TOK_KW_If,
+    TOK_KW_Else,
+    TOK_KW_For,
+    TOK_KW_While,
     TOK_KW_Unknown,
 };
 
@@ -22,6 +26,7 @@ enum Operators {
     TOK_OP_Semicolon,
     TOK_OP_Comma,
     TOK_OP_Period,
+    TOK_OP_Arrow,
     TOK_OP_Assign,
     TOK_OP_Equality,
     TOK_OP_Inequality,
@@ -33,8 +38,18 @@ enum Operators {
     TOK_OP_Minus,
     TOK_OP_Asterisk,
     TOK_OP_Slash,
+    TOK_OP_PlusEq,
+    TOK_OP_MinusEq,
+    TOK_OP_AsteriskEq,
+    TOK_OP_SlashEq,
     TOK_OP_Increment,
     TOK_OP_Decrement,
+    TOK_OP_ShiftLeft,
+    TOK_OP_ShiftRight,
+    TOK_OP_ShiftLeftEq,
+    TOK_OP_ShiftRightEq,
+    TOK_OP_AndAnd,
+    TOK_OP_OrOr,
     TOK_OP_Unknown,
 };
 
@@ -45,6 +60,10 @@ char* keywords[] = {
     [TOK_KW_Static] = "static",
     [TOK_KW_Return] = "return",
     [TOK_KW_Extern] = "extern",
+    [TOK_KW_If] = "if",
+    [TOK_KW_Else] = "else",
+    [TOK_KW_For] = "for",
+    [TOK_KW_While] = "while",
 };
 char* operators[] = {
     [TOK_OP_Left_Paren] = "(",
@@ -55,6 +74,7 @@ char* operators[] = {
     [TOK_OP_Semicolon] = ";",
     [TOK_OP_Comma] = ",",
     [TOK_OP_Period] = ".",
+    [TOK_OP_Arrow] = "->",
     [TOK_OP_Assign] = "=",
     [TOK_OP_Equality] = "==",
     [TOK_OP_Inequality] = "!=",
@@ -66,8 +86,18 @@ char* operators[] = {
     [TOK_OP_Minus] = "-",
     [TOK_OP_Asterisk] = "*",
     [TOK_OP_Slash] = "/",
+    [TOK_OP_PlusEq] = "+=",
+    [TOK_OP_MinusEq] = "-=",
+    [TOK_OP_AsteriskEq] = "*=",
+    [TOK_OP_SlashEq] = "/=",
     [TOK_OP_Increment] = "++",
     [TOK_OP_Decrement] = "--",
+    [TOK_OP_ShiftLeft] = "<<",
+    [TOK_OP_ShiftRight] = ">>",
+    [TOK_OP_ShiftLeftEq] = "<<=",
+    [TOK_OP_ShiftRightEq] = ">>=",
+    [TOK_OP_AndAnd] = "&&",
+    [TOK_OP_OrOr] = "||",
 };
 
 Sp_Hash_Table(int) Int_HT;
