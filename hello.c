@@ -1,4 +1,4 @@
-extern int printf(const char* __restrict __format, ...);
+extern int printf(const char* format, ...);
 
 int main() {
     int a;
@@ -6,9 +6,16 @@ int main() {
     a = 65;
     b = 66;
 
-    if (a <= b) {
+    if (a == b) {
         return 1;
-    } else {
+    }
+    else if (a > b) {
+        return 2;
+    }
+    else if (a < b) {
+        return 3;
+    }
+    else {
         return 0;
     }
 }

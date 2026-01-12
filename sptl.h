@@ -111,6 +111,7 @@ __attribute__((format(printf, 2, 3))) int sp_log(Sp_Log_Level log_level, const c
 #define sp_da_pop(da)                                                                                                  \
     do {                                                                                                               \
         --(da)->count;                                                                                                 \
+        (da)->data[(da)->count] = 0;                                                                                   \
     } while (0)
 
 /*

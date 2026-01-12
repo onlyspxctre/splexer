@@ -27,6 +27,8 @@ enum Operators {
     TOK_OP_Equality,
     TOK_OP_Less,
     TOK_OP_Greater,
+    TOK_OP_LessEq,
+    TOK_OP_GreaterEq,
     TOK_OP_Asterisk,
     __TOK_OP_OPTIONS__,
 };
@@ -51,6 +53,8 @@ char* operators[__TOK_OP_OPTIONS__] = {
     [TOK_OP_Equality] = "==",
     [TOK_OP_Less] = "<",
     [TOK_OP_Greater] = ">",
+    [TOK_OP_LessEq] = "<=",
+    [TOK_OP_GreaterEq] = ">=",
     [TOK_OP_Asterisk] = "*",
 };
 
@@ -133,6 +137,9 @@ void splexer_tokenize(Sp_Lexer* splexer) {
     while (fread(buffer, 1, 1, splexer->f) != 0) {
         switch (splexer->state) {
             case SPLEXER_IDLE:
+                if (*buffer == ' ') {
+                    continue;
+                }
                 splexer->state = splexer_eval_state(*buffer);
                 sp_sb_appendf(&splexer->tok, "%s", buffer);
                 break;
@@ -173,15 +180,10 @@ lex:
 
                 sp_da_push(&splexer->ast, node);
             }
-            break;
+            goto done;
         case SPLEXER_OPERATOR:
-            for (size_t i = 0; i < splexer->tok.count; ++i) {
-                *buffer = splexer->tok.data[i];
-                if (*buffer == ' ') {
-                    continue;
-                }
-
-                op_query = sp_ht_get(&splexer->operator_table, buffer);
+            while (splexer->tok.count) {
+                op_query = sp_ht_get(&splexer->operator_table, splexer->tok.data);
 
                 if (op_query) {
                     Sp_Lexer_Ast_Node node = (Sp_Lexer_Ast_Node) {
@@ -189,26 +191,32 @@ lex:
                         .str = {0},
                     };
 
-                    if (*buffer == '\n') {
+                    if (*op_query->key == '\n') {
                         sp_sb_appendf(&node.str, "\n");
-                    }
-                    else {
+                    } else {
                         sp_sb_appendf(&node.str, "\'%s\' ", op_query->key);
                     }
 
                     sp_da_push(&splexer->ast, node);
+                    goto done;
                 } else {
-                    printf("op_query returned NULL! Could not find \"%s\"\nTerminating...\n", buffer);
-                    splexer->state = SPLEXER_TERMINATE;
-                    return;
+                    /* If the current token is NOT found, we pop one character off the end and attempt again */
+                    sp_da_pop(&splexer->tok);
+                    fseek(splexer->f, -1, SEEK_CUR);
                 }
             }
-            break;
+
+            /* The operator does not exist */
+
+            sp_log(SP_ERROR, "splexer_tokenize could not find any matching operator! Terminating...");
+            splexer->state = SPLEXER_TERMINATE;
+            return;
         default:
             sp_unreachable();
             break;
     }
 
+done:
     sp_da_clear(&splexer->tok);
     splexer->state = feof(splexer->f) ? SPLEXER_TERMINATE : SPLEXER_IDLE;
 }
