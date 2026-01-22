@@ -2,3 +2,6 @@ compile_commands.json
 
 build/
 main
+*.o
+*.so
+*.a
