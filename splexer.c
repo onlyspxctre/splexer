@@ -1,10 +1,12 @@
 #include "splexer.h"
+#include <ctype.h>
 
 void splexer_ast_free(Sp_Lexer_Ast* ast) {
     for (size_t i = 0; i < ast->count; ++i) {
         ast->data[i].type = 0;
         sp_da_free(&ast->data[i].str);
     }
+    sp_da_free(ast);
 }
 
 int splexer_char_is_valid(char c) {
@@ -14,7 +16,8 @@ int splexer_char_is_valid(char c) {
     return 0;
 }
 
-void splexer_init(Sp_Lexer* splexer, const char* path, char** keywords, char** operators) {
+void splexer_init(Sp_Lexer* splexer, const char* path, const char** keywords, const char** operators) {
+    if (!splexer) return;
     for (int i = 0; i < TOK_KW_Unknown; ++i) {
         if (!keywords[i]) {
             sp_log(SP_WARNING, "No matching token found in kw_table! Skipping...");
@@ -199,7 +202,9 @@ done:
 }
 
 void splexer_destroy(Sp_Lexer* splexer) {
-    fclose(splexer->f);
+    if (splexer->f) {
+        fclose(splexer->f);
+    }
     splexer->f = NULL;
 
     sp_ht_free(&splexer->kw_table);
