@@ -41,9 +41,9 @@ typedef enum {
     SP_VERBOSE,
 } Sp_Log_Level;
 
-__attribute__((format(printf, 2, 3))) static int sp_log(Sp_Log_Level log_level, const char* format, ...) {
+__attribute__((format(printf, 2, 3))) static inline int sp_log(Sp_Log_Level log_level, const char *format, ...) {
     va_list arg;
-    FILE* fd;
+    FILE *fd;
 
     switch (log_level) {
         case SP_INFO:
@@ -79,8 +79,8 @@ __attribute__((format(printf, 2, 3))) static int sp_log(Sp_Log_Level log_level, 
  *
  */
 #define Sp_Dynamic_Array(T)                                                                                            \
-    typedef struct {                                                                                                   \
-        T* data;                                                                                                       \
+    struct {                                                                                                           \
+        T *data;                                                                                                       \
         size_t count;                                                                                                  \
         size_t capacity;                                                                                               \
     }
@@ -90,27 +90,44 @@ __attribute__((format(printf, 2, 3))) static int sp_log(Sp_Log_Level log_level, 
 #define sp_da_reserve(da, __expected__)                                                                                \
     do {                                                                                                               \
         const size_t expected = (__expected__);                                                                        \
-        if ((da)->capacity < expected) {                                                                               \
-            if ((da)->capacity == 0) {                                                                                 \
-                (da)->capacity = SP_DA_INIT_CAP;                                                                       \
+        size_t capacity = (da)->capacity;                                                                              \
+        if (capacity < expected) {                                                                                     \
+            if (capacity == 0) {                                                                                       \
+                capacity = SP_DA_INIT_CAP;                                                                             \
             }                                                                                                          \
-            while ((da)->capacity < expected) {                                                                        \
-                (da)->capacity *= 2;                                                                                   \
+            while (capacity < expected) {                                                                              \
+                capacity *= 2;                                                                                         \
             }                                                                                                          \
-            (da)->data = realloc((da)->data, (da)->capacity * sizeof(*(da)->data));                                    \
+            __typeof__((da)->data) data = (__typeof__((da)->data)) malloc(capacity * sizeof(*(da)->data));             \
+            memcpy(data, (da)->data, (da)->capacity * sizeof(*(da)->data));                                            \
+            free((da)->data);                                                                                          \
+            (da)->data = data;                                                                                         \
+            (da)->capacity = capacity;                                                                                 \
         }                                                                                                              \
+    } while (0)
+
+#define sp_da_resize(da, __count__)                                                                                    \
+    do {                                                                                                               \
+        size_t count = (__count__);                                                                                    \
+        if (count > (da)->capacity) {                                                                                  \
+            sp_da_reserve((da), count);                                                                                \
+        }                                                                                                              \
+        if (count > (da)->count) {                                                                                     \
+            memset((da)->data + (da)->count, 0, (count - (da)->count) * sizeof(*(da)->data));                          \
+        }                                                                                                              \
+        (da)->count = count;                                                                                           \
     } while (0)
 
 #define sp_da_push(da, element)                                                                                        \
     do {                                                                                                               \
         sp_da_reserve((da), (da)->count + 1);                                                                          \
-        (da)->data[(da)->count] = element;                                                                             \
-        ++(da)->count;                                                                                                 \
+        (da)->data[(da)->count++] = element;                                                                           \
     } while (0)
 
 #define sp_da_pop(da)                                                                                                  \
     do {                                                                                                               \
-        --(da)->count;                                                                                                 \
+        if ((da)->count > 0)                                                                                           \
+            --(da)->count;                                                                                             \
         (da)->data[(da)->count] = 0;                                                                                   \
     } while (0)
 
@@ -131,15 +148,15 @@ __attribute__((format(printf, 2, 3))) static int sp_log(Sp_Log_Level log_level, 
         (da)->capacity = 0;                                                                                            \
     } while (0)
 
-Sp_Dynamic_Array(char) Sp_String_Builder;
+typedef Sp_Dynamic_Array(char) Sp_String_Builder;
 
 /*
  * Appends formatted `format` to `sb`, extending the dynamic array if necessary.
  *
- * Increments `sb->count` by the length of parsed `format` excluding the null terminator, but `sb->data` itself is
- * safe-to-use.
+ * Increments `sb->count` by the length of parsed `format` excluding the null terminator, but `sb->data`
+ * itself is safe-to-use.
  */
-__attribute__((format(printf, 2, 3))) static int sp_sb_appendf(Sp_String_Builder* sb, const char* format, ...) {
+__attribute__((format(printf, 2, 3))) static inline int sp_sb_appendf(Sp_String_Builder *sb, const char *format, ...) {
     va_list arg;
 
     va_start(arg, format);
@@ -148,7 +165,7 @@ __attribute__((format(printf, 2, 3))) static int sp_sb_appendf(Sp_String_Builder
 
     sp_da_reserve(sb, sb->count + (size_t) count + 1); // allocate enough room for null terminator to
 
-    char* dest = sb->data + sb->count;
+    char *dest = sb->data + sb->count;
     va_start(arg, format);
     vsnprintf(dest, (size_t) count + 1, format, arg);
     va_end(arg);
@@ -158,42 +175,119 @@ __attribute__((format(printf, 2, 3))) static int sp_sb_appendf(Sp_String_Builder
     return count;
 }
 
-#define Sp_Linked_List(T)                                                                                              \
-    struct CONCAT(Sp_Internal_Node, __LINE__) {                                                                        \
-        T data;                                                                                                        \
-        struct CONCAT(Sp_Internal_Node, __LINE__) * prev;                                                              \
-        struct CONCAT(Sp_Internal_Node, __LINE__) * next;                                                              \
-    };                                                                                                                 \
-    typedef struct {                                                                                                   \
-        struct CONCAT(Sp_Internal_Node, __LINE__) * head;                                                              \
-        struct CONCAT(Sp_Internal_Node, __LINE__) * tail;                                                              \
+static inline Sp_String_Builder sp_cstr_to_sb(const char* cstr) {
+    Sp_String_Builder sb = {0};
+    sp_sb_appendf(&sb, "%s", cstr);
+    return sb;
+}
+
+
+static inline const char *sp_sb_cstr(Sp_String_Builder* sb) {
+    return sb->data;
+}
+
+#define Sp_Queue(T)                                                                                                    \
+    struct {                                                                                                           \
+        T *data;                                                                                                       \
+        size_t count;                                                                                                  \
+        size_t head;                                                                                                   \
+        size_t tail;                                                                                                   \
+        size_t capacity;                                                                                               \
     }
+
+#define SP_QUEUE_INIT_CAP SP_DA_INIT_CAP
+#define sp_queue_reserve(queue, __expected__)                                                                          \
+    do {                                                                                                               \
+        const size_t expected = (__expected__);                                                                        \
+        size_t capacity = (queue)->capacity;                                                                           \
+        if (capacity < expected) {                                                                                     \
+            if (capacity == 0) {                                                                                       \
+                capacity = SP_QUEUE_INIT_CAP;                                                                          \
+            }                                                                                                          \
+            while (capacity < expected) {                                                                              \
+                capacity *= 2;                                                                                         \
+            }                                                                                                          \
+            __typeof__((queue)->data) data = (__typeof__((queue)->data)) calloc(capacity, sizeof(*(queue)->data));     \
+            for (size_t i = 0; i < (queue)->capacity; ++i) {                                                           \
+                data[i] = (queue)->data[((queue)->head + i) % (queue)->capacity];                                      \
+            }                                                                                                          \
+            free((queue)->data);                                                                                       \
+            (queue)->data = data;                                                                                      \
+            (queue)->head = 0;                                                                                         \
+            (queue)->tail = (queue)->count;                                                                            \
+            (queue)->capacity = capacity;                                                                              \
+        }                                                                                                              \
+    } while (0)
+
+#define sp_queue_push(queue, element)                                                                                  \
+    do {                                                                                                               \
+        sp_queue_reserve((queue), (queue)->count + 1);                                                                 \
+        (queue)->data[(queue)->tail++ % (queue)->capacity] = (element);                                                \
+        ++(queue)->count;                                                                                              \
+    } while (0)
+
+#define sp_queue_pop(queue)                                                                                            \
+    do {                                                                                                               \
+        ++(queue)->head;                                                                                               \
+        if ((queue)->count > 0)                                                                                        \
+            --(queue)->count;                                                                                          \
+    } while (0)
+
+#define sp_queue_peek(queue) ((queue)->count == 0 ? 0 : (queue)->data[(queue)->head % (queue)->capacity])
+
+#define sp_queue_free(queue)                                                                                           \
+    do {                                                                                                               \
+        free((queue)->data);                                                                                           \
+        (queue)->data = NULL;                                                                                          \
+        (queue)->count = 0;                                                                                            \
+        (queue)->head = 0;                                                                                             \
+        (queue)->tail = 0;                                                                                             \
+        (queue)->capacity = 0;                                                                                         \
+    } while (0)
+
+typedef struct sp_ll_node {
+    struct sp_ll_node *prev;
+    struct sp_ll_node *next;
+    char data[];
+} sp_ll_node;
+
+#define Sp_Linked_List(T)                                                                                              \
+    struct {                                                                                                           \
+        T type;                                                                                                        \
+        sp_ll_node *head;                                                                                              \
+        sp_ll_node *tail;                                                                                              \
+    }
+
+/* Returns the type of the underlying data stored within the Sp_Linked_List. */
+#define sp_ll_type(ll) __typeof__((ll)->type)
+/* Returns a pointer of `sp_ll_type(ll)` to the underlying data stored at `sp_ll_node* node`. */
+#define sp_ll_node_unwrap(ll, node) ((sp_ll_type(ll)*) (node)->data)
 
 #define sp_ll_push_back(ll, element)                                                                                   \
     do {                                                                                                               \
         if ((ll)->head == NULL && (ll)->tail == NULL) { /* uninitialized state */                                      \
-            (ll)->head = malloc(sizeof(*(ll)->head));                                                                  \
-            (ll)->head->data = element;                                                                                \
+            (ll)->head = malloc(sizeof(*(ll)->head) + sizeof((ll)->type));                                             \
+            *sp_ll_node_unwrap(ll, (ll)->head) = (element);                                                            \
             (ll)->tail = (ll)->head;                                                                                   \
         } else {                                                                                                       \
-            (ll)->tail->next = malloc(sizeof(*(ll)->tail));                                                            \
+            (ll)->tail->next = malloc(sizeof(*(ll)->tail) + sizeof((ll)->type));                                       \
             (ll)->tail->next->prev = (ll)->tail;                                                                       \
             (ll)->tail = (ll)->tail->next;                                                                             \
-            (ll)->tail->data = element;                                                                                \
+            *sp_ll_node_unwrap(ll, (ll)->tail) = (element);                                                            \
         }                                                                                                              \
     } while (0)
 
 #define sp_ll_push_front(ll, element)                                                                                  \
     do {                                                                                                               \
         if ((ll)->head == NULL && (ll)->tail == NULL) { /* uninitialized state */                                      \
-            (ll)->head = malloc(sizeof(*(ll)->head));                                                                  \
-            (ll)->head->data = element;                                                                                \
+            (ll)->head = malloc(sizeof(*(ll)->head) + sizeof((ll)->type);                                              \
+            *sp_ll_node_unwrap(ll, (ll)->head) = (element);                                                            \
             (ll)->tail = (ll)->head;                                                                                   \
         } else {                                                                                                       \
-            (ll)->head->prev = malloc(sizeof(*(ll)->tail));                                                            \
+            (ll)->head->prev = malloc(sizeof(*(ll)->tail) + sizeof((ll)->type);                                        \
             (ll)->head->prev->next = (ll)->head;                                                                       \
             (ll)->head = (ll)->head->prev;                                                                             \
-            (ll)->head->data = element;                                                                                \
+            *sp_ll_node_unwrap(ll, (ll)->head) = (element);                                                            \
         }                                                                                                              \
     } while (0)
 
@@ -231,7 +325,7 @@ __attribute__((format(printf, 2, 3))) static int sp_sb_appendf(Sp_String_Builder
 
 #define sp_ll_free(ll)                                                                                                 \
     do {                                                                                                               \
-        void* next;                                                                                                    \
+        void *next;                                                                                                    \
         while ((ll)->head) {                                                                                           \
             next = (ll)->head->next;                                                                                   \
             free((ll)->head);                                                                                          \
@@ -241,12 +335,10 @@ __attribute__((format(printf, 2, 3))) static int sp_sb_appendf(Sp_String_Builder
         (ll)->tail = NULL;                                                                                             \
     } while (0)
 
-#define sp_ll_node_ptr(ll) (__typeof__((ll)->head))
-
 #define FNV_PRIME_32 16777619
 #define FNV_OFFSET_BASIS_32 2166136261
 
-static uint32_t hash_fnv(const char* data, const size_t bytes) {
+static inline uint32_t hash_fnv(const char *data, const size_t bytes) {
     uint32_t hash = FNV_OFFSET_BASIS_32;
 
     for (size_t i = 0; i < bytes; ++i) {
@@ -265,12 +357,11 @@ static uint32_t hash_fnv(const char* data, const size_t bytes) {
  * `SP_HT_LOAD_CAPACITY` (default = 0.75).
  */
 #define Sp_Hash_Table(T)                                                                                               \
-    struct CONCAT(Sp_Hash_Table_Node, __LINE__) {                                                                      \
-        char* key;                                                                                                     \
-        T value;                                                                                                       \
-    };                                                                                                                 \
-    typedef struct {                                                                                                   \
-        struct CONCAT(Sp_Hash_Table_Node, __LINE__) * nodes;                                                           \
+    struct {                                                                                                           \
+        struct {                                                                                                       \
+            char *key;                                                                                                 \
+            T value;                                                                                                   \
+        } *nodes;                                                                                                      \
         size_t count;                                                                                                  \
         size_t capacity;                                                                                               \
     }
@@ -298,11 +389,12 @@ static uint32_t hash_fnv(const char* data, const size_t bytes) {
         }                                                                                                              \
     } while (0)
 
-#define sp_ht_rehash(ht, old_capacity)                                                                                 \
+#define sp_ht_rehash(ht, __old_capacity__)                                                                             \
     do {                                                                                                               \
+        size_t CONCAT(old_capacity, __LINE__) = __old_capacity__;                                                      \
         sp_ht_node_ptr((ht)) old_nodes = (ht)->nodes;                                                                  \
         (ht)->nodes = calloc((ht)->capacity, sizeof(*(ht)->nodes));                                                    \
-        for (size_t i = 0; i < old_capacity; ++i) {                                                                    \
+        for (size_t i = 0; i < CONCAT(old_capacity, __LINE__); ++i) {                                                  \
             if (!old_nodes[i].key) {                                                                                   \
                 continue;                                                                                              \
             }                                                                                                          \
@@ -320,8 +412,8 @@ static uint32_t hash_fnv(const char* data, const size_t bytes) {
  * If the table does not contain the key, an index to an empty node will be returned.
  *
  * ERRORS
- * If open addressing collision resolution cannot find an empty node, the capacity of the hash table will be returned.
- * In this case, you would most likely need to regrow the hash table.
+ * If open addressing collision resolution cannot find an empty node, the capacity of the hash table will be
+ * returned. In this case, you would most likely need to regrow the hash table.
  */
 #define sp_ht_hash(ht, expected_key)                                                                                   \
     ({                                                                                                                 \
@@ -362,7 +454,8 @@ static uint32_t hash_fnv(const char* data, const size_t bytes) {
 /*
  * WARNING: Uses non-standard statement expressions, which may not be supported by all C compilers.
  *
- * Returns an `sp_ht_node_ptr(ht)`, or a pointer to the node of the value of `expected_key`, or NULL if not found.
+ * Returns an `sp_ht_node_ptr(ht)`, or a pointer to the node of the value of `expected_key`, or NULL if not
+ * found.
  */
 #define sp_ht_get(ht, expected_key)                                                                                    \
     (sp_ht_hash((ht), (expected_key)) != (ht)->capacity                                                                \

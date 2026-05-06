@@ -2,7 +2,6 @@
 #define SPLEXER_H
 
 #include <stdio.h>
-#include <ctype.h>
 
 #include "sptl.h"
 
@@ -56,7 +55,7 @@ enum Operators {
     TOK_OP_Unknown,
 };
 
-static char* keywords[] = {
+static const char* keywords[] = {
     [TOK_KW_TypeInt] = "int",
     [TOK_KW_TypeFloat] = "float",
     [TOK_KW_Const] = "const",
@@ -68,7 +67,7 @@ static char* keywords[] = {
     [TOK_KW_For] = "for",
     [TOK_KW_While] = "while",
 };
-static char* operators[] = {
+static const char* operators[] = {
     [TOK_OP_Left_Paren] = "(",
     [TOK_OP_Right_Paren] = ")",
     [TOK_OP_Left_Braces] = "{",
@@ -103,8 +102,6 @@ static char* operators[] = {
     [TOK_OP_OrOr] = "||",
 };
 
-Sp_Hash_Table(int) Int_HT;
-
 typedef enum {
     AST_UNKNOWN,
     AST_KEYWORD,
@@ -119,7 +116,7 @@ typedef struct {
     Sp_String_Builder str;
 } Sp_Lexer_Ast_Node;
 
-Sp_Dynamic_Array(Sp_Lexer_Ast_Node) Sp_Lexer_Ast;
+typedef Sp_Dynamic_Array(Sp_Lexer_Ast_Node) Sp_Lexer_Ast;
 void splexer_ast_free(Sp_Lexer_Ast* ast);
 
 typedef struct {
@@ -136,8 +133,8 @@ typedef enum {
 typedef struct {
     FILE* f;
 
-    Int_HT kw_table;
-    Int_HT op_table;
+    Sp_Hash_Table(int) kw_table;
+    Sp_Hash_Table(int) op_table;
 
     Sp_Lexer_Token tok;
 
@@ -150,7 +147,7 @@ typedef struct {
  */
 int splexer_char_is_valid(char c);
 
-void splexer_init(Sp_Lexer* splexer, const char* path, char** keywords, char** operators);
+void splexer_init(Sp_Lexer* splexer, const char* path, const char** keywords, const char** operators);
 
 /*
  * Evaluate the lexer's state based on the given character.
