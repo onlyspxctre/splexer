@@ -1,14 +1,6 @@
 #include "splexer.h"
 #include <ctype.h>
 
-void splexer_ast_free(Sp_Lexer_Ast* ast) {
-    for (size_t i = 0; i < ast->count; ++i) {
-        ast->data[i].type = 0;
-        sp_da_free(&ast->data[i].str);
-    }
-    sp_da_free(ast);
-}
-
 int splexer_char_is_valid(char c) {
     if (isalnum(c) || c == '_') {
         return 1;
@@ -134,19 +126,19 @@ lex:
         case AST_IDENTIFIER:
             kw_query = sp_ht_get(&splexer->kw_table, splexer->tok.sb.data);
             if (kw_query) {
-                Sp_Lexer_Ast_Node node = (Sp_Lexer_Ast_Node) {
+                Sp_Lexer_Token node = (Sp_Lexer_Token) {
                     .type = AST_KEYWORD,
-                    .str = {0},
+                    .sb = {0},
                 };
-                sp_sb_appendf(&node.str, "\'%s\' ", kw_query->key);
+                sp_sb_appendf(&node.sb, "\'%s\' ", kw_query->key);
 
                 sp_da_push(&splexer->ast, node);
             } else {
-                Sp_Lexer_Ast_Node node = (Sp_Lexer_Ast_Node) {
+                Sp_Lexer_Token node = (Sp_Lexer_Token) {
                     .type = AST_IDENTIFIER,
-                    .str = {0},
+                    .sb = {0},
                 };
-                sp_sb_appendf(&node.str, "\'%s\' ", splexer->tok.sb.data);
+                sp_sb_appendf(&node.sb, "\'%s\' ", splexer->tok.sb.data);
 
                 sp_da_push(&splexer->ast, node);
             }
@@ -154,11 +146,11 @@ lex:
         case AST_INTLITERAL:
         case AST_FLOATLITERAL:
             1 + 2; // TODO: Remove
-            Sp_Lexer_Ast_Node node = (Sp_Lexer_Ast_Node) {
+            Sp_Lexer_Token node = (Sp_Lexer_Token) {
                 .type = splexer->tok.type,
-                .str = {0},
+                .sb = {0},
             };
-            sp_sb_appendf(&node.str, "\'%s\' ", splexer->tok.sb.data);
+            sp_sb_appendf(&node.sb, "\'%s\' ", splexer->tok.sb.data);
 
             sp_da_push(&splexer->ast, node);
             goto done;
@@ -167,15 +159,15 @@ lex:
                 op_query = sp_ht_get(&splexer->op_table, splexer->tok.sb.data);
 
                 if (op_query) {
-                    Sp_Lexer_Ast_Node node = (Sp_Lexer_Ast_Node) {
+                    Sp_Lexer_Token node = (Sp_Lexer_Token) {
                         .type = AST_OPERATOR,
-                        .str = {0},
+                        .sb = {0},
                     };
 
                     if (*op_query->key == '\n') {
-                        sp_sb_appendf(&node.str, "\n");
+                        sp_sb_appendf(&node.sb, "\n");
                     } else {
-                        sp_sb_appendf(&node.str, "\'%s\' ", op_query->key);
+                        sp_sb_appendf(&node.sb, "\'%s\' ", op_query->key);
                     }
 
                     sp_da_push(&splexer->ast, node);
@@ -211,5 +203,8 @@ void splexer_destroy(Sp_Lexer* splexer) {
     sp_ht_free(&splexer->op_table);
 
     sp_da_free(&splexer->tok.sb);
-    splexer_ast_free(&splexer->ast);
+    for (size_t i = 0; i < splexer->ast.count; ++i) {
+        sp_da_free(&splexer->ast.data[i].sb);
+    }
+    sp_da_free(&splexer->ast);
 }

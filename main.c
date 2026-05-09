@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
     // printf("\n------------------------------------------------\n");
     printf("IR (Ast):\n");
     for (size_t i = 0; i < splexer.ast.count; ++i) {
-        printf("%s", splexer.ast.data[i].str.data);
+        printf("%s", splexer.ast.data[i].sb.data);
         if (splexer.ast.data[i].type == AST_INTLITERAL) {
             printf("(int literal) ");
         }

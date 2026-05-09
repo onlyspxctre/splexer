@@ -113,15 +113,7 @@ typedef enum {
 
 typedef struct {
     Sp_Lexer_Ast_Type type;
-    Sp_String_Builder str;
-} Sp_Lexer_Ast_Node;
-
-typedef Sp_Dynamic_Array(Sp_Lexer_Ast_Node) Sp_Lexer_Ast;
-void splexer_ast_free(Sp_Lexer_Ast* ast);
-
-typedef struct {
     Sp_String_Builder sb;
-    Sp_Lexer_Ast_Type type;
 } Sp_Lexer_Token;
 
 typedef enum {
@@ -139,7 +131,7 @@ typedef struct {
     Sp_Lexer_Token tok;
 
     Sp_Lexer_State state;
-    Sp_Lexer_Ast ast;
+    Sp_Dynamic_Array(Sp_Lexer_Token) ast;
 } Sp_Lexer;
 
 /*
