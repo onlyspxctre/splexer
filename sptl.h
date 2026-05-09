@@ -181,7 +181,6 @@ static inline Sp_String_Builder sp_cstr_to_sb(const char* cstr) {
     return sb;
 }
 
-
 static inline const char *sp_sb_cstr(Sp_String_Builder* sb) {
     return sb->data;
 }

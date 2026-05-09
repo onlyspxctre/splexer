@@ -103,16 +103,16 @@ static const char* operators[] = {
 };
 
 typedef enum {
-    AST_UNKNOWN,
-    AST_KEYWORD,
-    AST_OPERATOR,
-    AST_IDENTIFIER,
-    AST_INTLITERAL,
-    AST_FLOATLITERAL,
-} Sp_Lexer_Ast_Type;
+    TOK_TYPE_UNKNOWN,
+    TOK_TYPE_KEYWORD,
+    TOK_TYPE_OPERATOR,
+    TOK_TYPE_IDENTIFIER,
+    TOK_TYPE_INTLITERAL,
+    TOK_TYPE_FLOATLITERAL,
+} Sp_Lexer_Token_Type;
 
 typedef struct {
-    Sp_Lexer_Ast_Type type;
+    Sp_Lexer_Token_Type type;
     Sp_String_Builder sb;
 } Sp_Lexer_Token;
 
@@ -131,7 +131,7 @@ typedef struct {
     Sp_Lexer_Token tok;
 
     Sp_Lexer_State state;
-    Sp_Dynamic_Array(Sp_Lexer_Token) ast;
+    Sp_Dynamic_Array(Sp_Lexer_Token) tokens;
 } Sp_Lexer;
 
 /*
@@ -144,7 +144,7 @@ void splexer_init(Sp_Lexer* splexer, const char* path, const char** keywords, co
 /*
  * Evaluate the lexer's state based on the given character.
  */
-Sp_Lexer_Ast_Type splexer_ast_eval_type(char c);
+Sp_Lexer_Token_Type splexer_ast_eval_type(char c);
 
 int splexer_token_append(Sp_Lexer_Token* token, char c);
 void splexer_token_clear(Sp_Lexer_Token* token);

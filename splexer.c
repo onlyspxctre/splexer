@@ -28,54 +28,54 @@ void splexer_init(Sp_Lexer* splexer, const char* path, const char** keywords, co
     splexer->f = fopen(path, "rb");
 }
 
-Sp_Lexer_Ast_Type splexer_ast_eval_type(char c) {
+Sp_Lexer_Token_Type splexer_ast_eval_type(char c) {
     if (splexer_char_is_valid(c)) {
-        return AST_IDENTIFIER;
+        return TOK_TYPE_IDENTIFIER;
     } else {
-        return AST_OPERATOR;
+        return TOK_TYPE_OPERATOR;
     }
 }
 
 int splexer_token_append(Sp_Lexer_Token* token, char c) {
     switch (token->type) {
-        case AST_IDENTIFIER:
+        case TOK_TYPE_IDENTIFIER:
             if (!splexer_char_is_valid(c)) {
                 return 0; /* False */
             }
             break;
-        case AST_INTLITERAL:
+        case TOK_TYPE_INTLITERAL:
             if (!isdigit(c)) {
                 if (c == '.') {
-                    token->type = AST_FLOATLITERAL;
+                    token->type = TOK_TYPE_FLOATLITERAL;
                 }
                 else if (splexer_char_is_valid(c)) {
-                    token->type = AST_IDENTIFIER;
+                    token->type = TOK_TYPE_IDENTIFIER;
                 }
                 else {
                     return 0;
                 }
             }
             break;
-        case AST_FLOATLITERAL: /* TODO: suffixes to determine literal type */
+        case TOK_TYPE_FLOATLITERAL: /* TODO: suffixes to determine literal type */
             if (!isdigit(c)) {
                 // Cannot append non-digit character after decimal point on a float literal
                 return 0;
             }
             break;
-        case AST_OPERATOR:
+        case TOK_TYPE_OPERATOR:
             if (splexer_char_is_valid(c)) {
                 return 0;
             }
             break;
-        case AST_UNKNOWN:
+        case TOK_TYPE_UNKNOWN:
             if (isdigit(c)) {
-                token->type = AST_INTLITERAL;
+                token->type = TOK_TYPE_INTLITERAL;
             }
             else if (splexer_char_is_valid(c)) {
-                token->type = AST_IDENTIFIER;
+                token->type = TOK_TYPE_IDENTIFIER;
             }
             else {
-                token->type = AST_OPERATOR;
+                token->type = TOK_TYPE_OPERATOR;
             }
             break;
         default:
@@ -89,7 +89,7 @@ int splexer_token_append(Sp_Lexer_Token* token, char c) {
 
 void splexer_token_clear(Sp_Lexer_Token* token) {
     sp_da_clear(&token->sb);
-    token->type = AST_UNKNOWN;
+    token->type = TOK_TYPE_UNKNOWN;
 }
 
 void splexer_tokenize(Sp_Lexer* splexer) {
@@ -123,54 +123,54 @@ void splexer_tokenize(Sp_Lexer* splexer) {
 
 lex:
     switch (splexer->tok.type) {
-        case AST_IDENTIFIER:
+        case TOK_TYPE_IDENTIFIER:
             kw_query = sp_ht_get(&splexer->kw_table, splexer->tok.sb.data);
             if (kw_query) {
-                Sp_Lexer_Token node = (Sp_Lexer_Token) {
-                    .type = AST_KEYWORD,
+                Sp_Lexer_Token token = (Sp_Lexer_Token) {
+                    .type = TOK_TYPE_KEYWORD,
                     .sb = {0},
                 };
-                sp_sb_appendf(&node.sb, "\'%s\' ", kw_query->key);
+                sp_sb_appendf(&token.sb, "\'%s\' ", kw_query->key);
 
-                sp_da_push(&splexer->ast, node);
+                sp_da_push(&splexer->tokens, token);
             } else {
-                Sp_Lexer_Token node = (Sp_Lexer_Token) {
-                    .type = AST_IDENTIFIER,
+                Sp_Lexer_Token token = (Sp_Lexer_Token) {
+                    .type = TOK_TYPE_KEYWORD,
                     .sb = {0},
                 };
-                sp_sb_appendf(&node.sb, "\'%s\' ", splexer->tok.sb.data);
+                sp_sb_appendf(&token.sb, "\'%s\' ", splexer->tok.sb.data);
 
-                sp_da_push(&splexer->ast, node);
+                sp_da_push(&splexer->tokens, token);
             }
             goto done;
-        case AST_INTLITERAL:
-        case AST_FLOATLITERAL:
+        case TOK_TYPE_INTLITERAL:
+        case TOK_TYPE_FLOATLITERAL:
             1 + 2; // TODO: Remove
-            Sp_Lexer_Token node = (Sp_Lexer_Token) {
+            Sp_Lexer_Token token = (Sp_Lexer_Token) {
                 .type = splexer->tok.type,
                 .sb = {0},
             };
-            sp_sb_appendf(&node.sb, "\'%s\' ", splexer->tok.sb.data);
+            sp_sb_appendf(&token.sb, "\'%s\' ", splexer->tok.sb.data);
 
-            sp_da_push(&splexer->ast, node);
+            sp_da_push(&splexer->tokens, token);
             goto done;
-        case AST_OPERATOR:
+        case TOK_TYPE_OPERATOR:
             while (splexer->tok.sb.count) {
                 op_query = sp_ht_get(&splexer->op_table, splexer->tok.sb.data);
 
                 if (op_query) {
-                    Sp_Lexer_Token node = (Sp_Lexer_Token) {
-                        .type = AST_OPERATOR,
+                    Sp_Lexer_Token token = (Sp_Lexer_Token) {
+                        .type = TOK_TYPE_OPERATOR,
                         .sb = {0},
                     };
 
                     if (*op_query->key == '\n') {
-                        sp_sb_appendf(&node.sb, "\n");
+                        sp_sb_appendf(&token.sb, "\n");
                     } else {
-                        sp_sb_appendf(&node.sb, "\'%s\' ", op_query->key);
+                        sp_sb_appendf(&token.sb, "\'%s\' ", op_query->key);
                     }
 
-                    sp_da_push(&splexer->ast, node);
+                    sp_da_push(&splexer->tokens, token);
                     goto done;
                 } else {
                     /* If the current token is NOT found, we pop one character off the end and attempt again */
@@ -203,8 +203,8 @@ void splexer_destroy(Sp_Lexer* splexer) {
     sp_ht_free(&splexer->op_table);
 
     sp_da_free(&splexer->tok.sb);
-    for (size_t i = 0; i < splexer->ast.count; ++i) {
-        sp_da_free(&splexer->ast.data[i].sb);
+    for (size_t i = 0; i < splexer->tokens.count; ++i) {
+        sp_da_free(&splexer->tokens.data[i].sb);
     }
-    sp_da_free(&splexer->ast);
+    sp_da_free(&splexer->tokens);
 }

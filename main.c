@@ -18,12 +18,12 @@ int main(int argc, char** argv) {
     // printf("%s<EOF>\n", parsed.data);
     // printf("\n------------------------------------------------\n");
     printf("IR (Ast):\n");
-    for (size_t i = 0; i < splexer.ast.count; ++i) {
-        printf("%s", splexer.ast.data[i].sb.data);
-        if (splexer.ast.data[i].type == AST_INTLITERAL) {
+    for (size_t i = 0; i < splexer.tokens.count; ++i) {
+        printf("%s", splexer.tokens.data[i].sb.data);
+        if (splexer.tokens.data[i].type == TOK_TYPE_INTLITERAL) {
             printf("(int literal) ");
         }
-        else if (splexer.ast.data[i].type == AST_FLOATLITERAL) {
+        else if (splexer.tokens.data[i].type == TOK_TYPE_FLOATLITERAL) {
             printf("(float literal) ");
         }
     }
