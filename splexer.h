@@ -9,6 +9,7 @@
 enum Keywords {
     TOK_KW_TypeInt,
     TOK_KW_TypeFloat,
+    TOK_KW_TypeChar,
     TOK_KW_Const,
     TOK_KW_Static,
     TOK_KW_Return,
@@ -59,6 +60,7 @@ enum Operators {
 static const char* keywords[] = {
     [TOK_KW_TypeInt] = "int",
     [TOK_KW_TypeFloat] = "float",
+    [TOK_KW_TypeChar] = "char",
     [TOK_KW_Const] = "const",
     [TOK_KW_Static] = "static",
     [TOK_KW_Return] = "return",

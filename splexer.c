@@ -137,7 +137,7 @@ lex:
                 sp_da_push(&splexer->tokens, token);
             } else {
                 Sp_Lexer_Token token = (Sp_Lexer_Token) {
-                    .type = TOK_TYPE_KEYWORD,
+                    .type = TOK_TYPE_IDENTIFIER,
                     .sb = {0},
                 };
                 sp_sb_appendf(&token.sb, "\'%s\' ", splexer->tok.sb.data);

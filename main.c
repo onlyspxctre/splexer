@@ -26,6 +26,9 @@ int main(int argc, char** argv) {
         else if (splexer.tokens.data[i].type == TOK_TYPE_FLOATLITERAL) {
             printf("(float literal) ");
         }
+        else if (splexer.tokens.data[i].type == TOK_TYPE_IDENTIFIER) {
+            printf("(identifier) ");
+        }
     }
     // printf("\n------------------------------------------------\n");
     // printf("parsed.count: %ld\n", parsed.count);
