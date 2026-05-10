@@ -22,10 +22,10 @@ enum Keywords {
 };
 
 enum Operators {
-    TOK_OP_Left_Paren,
-    TOK_OP_Right_Paren,
-    TOK_OP_Left_Braces,
-    TOK_OP_Right_Braces,
+    TOK_OP_LeftParen,
+    TOK_OP_RightParen,
+    TOK_OP_LeftBraces,
+    TOK_OP_RightBraces,
     TOK_OP_Newline,
     TOK_OP_Semicolon,
     TOK_OP_Comma,
@@ -54,6 +54,7 @@ enum Operators {
     TOK_OP_ShiftRightEq,
     TOK_OP_AndAnd,
     TOK_OP_OrOr,
+    TOK_OP_Pound,
     TOK_OP_Unknown,
 };
 
@@ -71,10 +72,10 @@ static const char* keywords[] = {
     [TOK_KW_While] = "while",
 };
 static const char* operators[] = {
-    [TOK_OP_Left_Paren] = "(",
-    [TOK_OP_Right_Paren] = ")",
-    [TOK_OP_Left_Braces] = "{",
-    [TOK_OP_Right_Braces] = "}",
+    [TOK_OP_LeftParen] = "(",
+    [TOK_OP_RightParen] = ")",
+    [TOK_OP_LeftBraces] = "{",
+    [TOK_OP_RightBraces] = "}",
     [TOK_OP_Newline] = "\n",
     [TOK_OP_Semicolon] = ";",
     [TOK_OP_Comma] = ",",
@@ -103,6 +104,7 @@ static const char* operators[] = {
     [TOK_OP_ShiftRightEq] = ">>=",
     [TOK_OP_AndAnd] = "&&",
     [TOK_OP_OrOr] = "||",
+    [TOK_OP_Pound] = "#",
 };
 
 typedef enum {

@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 extern int printf(const char* format, ...);
 
 int main() {
