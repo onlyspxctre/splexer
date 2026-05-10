@@ -10,7 +10,7 @@ libsplexer.a: splexer.o
 	ar rcs build/libsplexer.a splexer.o
 
 main: main.c libsplexer.so libsplexer.a
-	clang -Wall -Wextra -ggdb -o main main.c -L./build -I. -lsplexer
+	clang -Wall -Wextra -ggdb -o main main.c -L./build -I. -l:libsplexer.so
 
 
 valgrind: main

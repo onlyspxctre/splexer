@@ -1,11 +1,11 @@
 #include "splexer.h"
 #include <ctype.h>
 
-int splexer_char_is_valid(char c) {
+bool splexer_char_is_valid(char c) {
     if (isalnum(c) || c == '_') {
-        return 1;
+        return true;
     }
-    return 0;
+    return false;
 }
 
 void splexer_init(Sp_Lexer* splexer, const char* path, const char** keywords, const char** operators) {
@@ -26,14 +26,6 @@ void splexer_init(Sp_Lexer* splexer, const char* path, const char** keywords, co
     }
 
     splexer->f = fopen(path, "rb");
-}
-
-Sp_Lexer_Token_Type splexer_ast_eval_type(char c) {
-    if (splexer_char_is_valid(c)) {
-        return TOK_TYPE_IDENTIFIER;
-    } else {
-        return TOK_TYPE_OPERATOR;
-    }
 }
 
 int splexer_token_append(Sp_Lexer_Token* token, char c) {
@@ -58,11 +50,21 @@ int splexer_token_append(Sp_Lexer_Token* token, char c) {
             break;
         case TOK_TYPE_FLOATLITERAL: /* TODO: suffixes to determine literal type */
             if (!isdigit(c)) {
+                if (tolower(c) == 'f' || tolower(c) == 'l') { // suffix literal type
+                    break;
+                }
+
                 // Cannot append non-digit character after decimal point on a float literal
                 return 0;
             }
             break;
         case TOK_TYPE_OPERATOR:
+            if (token->sb.data[token->sb.count - 1] == '.') {
+                if (isdigit(c) || tolower(c) == 'f' || tolower(c) == 'l') {
+                    token->type = TOK_TYPE_FLOATLITERAL;
+                    break;
+                }
+            }
             if (splexer_char_is_valid(c)) {
                 return 0;
             }

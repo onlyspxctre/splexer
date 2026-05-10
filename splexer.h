@@ -2,6 +2,7 @@
 #define SPLEXER_H
 
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "sptl.h"
 
@@ -137,14 +138,9 @@ typedef struct {
 /*
  * Returns 1 (true) if `c` is a valid character in an identifier, and 0 (false) if not.
  */
-int splexer_char_is_valid(char c);
+bool splexer_char_is_valid(char c);
 
 void splexer_init(Sp_Lexer* splexer, const char* path, const char** keywords, const char** operators);
-
-/*
- * Evaluate the lexer's state based on the given character.
- */
-Sp_Lexer_Token_Type splexer_ast_eval_type(char c);
 
 int splexer_token_append(Sp_Lexer_Token* token, char c);
 void splexer_token_clear(Sp_Lexer_Token* token);

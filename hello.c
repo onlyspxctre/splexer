@@ -5,17 +5,21 @@ int main() {
     float b;
     a = 65;
     b = 66.0;
+    b = 67.0f;
+    b = .2f;
 
     if (a == b) {
         a + b;
         return 1;
     }
-    else if (a > b) {
-        a - b;
+    else if (a>b) {
+        a-b;
         return 2;
     }
     else if (a < b) {
         ++a;
+        a ++
+            ;
         return 3;
     }
     else {
