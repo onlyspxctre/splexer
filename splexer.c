@@ -8,23 +8,15 @@ bool splexer_char_is_valid(char c) {
     return false;
 }
 
-void splexer_init(Sp_Lexer* splexer, const char* path, const char** keywords, const char** operators) {
+void splexer_init(Sp_Lexer* splexer, const char* path, const char** tokens) {
     if (!splexer) return;
-    for (int i = 0; i < TOK_KW_Unknown; ++i) {
-        if (!keywords[i]) {
+    for (int i = 0; i < TOK_Unknown; ++i) {
+        if (!tokens[i]) {
             sp_log(SP_WARNING, "No matching token found in kw_table! Skipping...");
             continue;
         }
-        sp_ht_insert(&splexer->kw_table, keywords[i], i);
+        sp_ht_insert(&splexer->tok_table, tokens[i], i);
     }
-    for (int i = 0; i < TOK_OP_Unknown; ++i) {
-        if (!operators[i]) {
-            sp_log(SP_WARNING, "No matching token found in op_table! Skipping...");
-            continue;
-        }
-        sp_ht_insert(&splexer->op_table, operators[i], i);
-    }
-
     splexer->f = fopen(path, "rb");
 }
 
@@ -95,8 +87,7 @@ void splexer_token_clear(Sp_Lexer_Token* token) {
 }
 
 void splexer_tokenize(Sp_Lexer* splexer) {
-    sp_ht_node_ptr(&splexer->kw_table) kw_query;
-    sp_ht_node_ptr(&splexer->op_table) op_query;
+    sp_ht_node_t(&splexer->tok_table)* tok_query = NULL;
     char buffer[2] = "\0";
 
     while (fread(buffer, 1, 1, splexer->f) != 0) {
@@ -126,13 +117,13 @@ void splexer_tokenize(Sp_Lexer* splexer) {
 lex:
     switch (splexer->tok.type) {
         case TOK_TYPE_IDENTIFIER:
-            kw_query = sp_ht_get(&splexer->kw_table, splexer->tok.sb.data);
-            if (kw_query) {
+            sp_ht_get(&splexer->tok_table, splexer->tok.sb.data, &tok_query);
+            if (tok_query) {
                 Sp_Lexer_Token token = (Sp_Lexer_Token) {
                     .type = TOK_TYPE_KEYWORD,
                     .sb = {0},
                 };
-                sp_sb_appendf(&token.sb, "\'%s\' ", kw_query->key);
+                sp_sb_appendf(&token.sb, "\'%s\' ", tok_query->key);
 
                 sp_da_push(&splexer->tokens, token);
             } else {
@@ -158,18 +149,17 @@ lex:
             goto done;
         case TOK_TYPE_OPERATOR:
             while (splexer->tok.sb.count) {
-                op_query = sp_ht_get(&splexer->op_table, splexer->tok.sb.data);
-
-                if (op_query) {
+                sp_ht_get(&splexer->tok_table, splexer->tok.sb.data, &tok_query);
+                if (tok_query) {
                     Sp_Lexer_Token token = (Sp_Lexer_Token) {
                         .type = TOK_TYPE_OPERATOR,
                         .sb = {0},
                     };
 
-                    if (*op_query->key == '\n') {
+                    if (*tok_query->key == '\n') {
                         sp_sb_appendf(&token.sb, "\n");
                     } else {
-                        sp_sb_appendf(&token.sb, "\'%s\' ", op_query->key);
+                        sp_sb_appendf(&token.sb, "\'%s\' ", tok_query->key);
                     }
 
                     sp_da_push(&splexer->tokens, token);
@@ -201,8 +191,7 @@ void splexer_destroy(Sp_Lexer* splexer) {
     }
     splexer->f = NULL;
 
-    sp_ht_free(&splexer->kw_table);
-    sp_ht_free(&splexer->op_table);
+    sp_ht_free(&splexer->tok_table);
 
     sp_da_free(&splexer->tok.sb);
     for (size_t i = 0; i < splexer->tokens.count; ++i) {

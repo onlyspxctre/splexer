@@ -10,6 +10,8 @@
 #define INNER_CONCAT(a, b) a##b
 #define CONCAT(a, b) INNER_CONCAT(a, b)
 
+#define macro_var(id) CONCAT(id, __LINE__)
+
 #if defined(__GNUC__) || defined(__clang__)
 #define sp_unreachable()                                                                                               \
     do {                                                                                                               \
@@ -85,6 +87,9 @@ __attribute__((format(printf, 2, 3))) static inline int sp_log(Sp_Log_Level log_
         size_t capacity;                                                                                               \
     }
 
+#define sp_da_type(da) __typeof__((da)->data)
+#define sp_da_get(da, i) (da)->data[i]
+
 // TODO: Generalize reserve operation into a common backend (related sp_ht_reserve)
 #define SP_DA_INIT_CAP 16
 #define sp_da_reserve(da, __expected__)                                                                                \
@@ -93,13 +98,13 @@ __attribute__((format(printf, 2, 3))) static inline int sp_log(Sp_Log_Level log_
         size_t capacity = (da)->capacity;                                                                              \
         if (capacity < expected) {                                                                                     \
             if (capacity == 0) {                                                                                       \
-                capacity = SP_DA_INIT_CAP;                                                                             \
+                capacity = expected;                                                                                   \
             }                                                                                                          \
             while (capacity < expected) {                                                                              \
                 capacity *= 2;                                                                                         \
             }                                                                                                          \
             __typeof__((da)->data) data = (__typeof__((da)->data)) malloc(capacity * sizeof(*(da)->data));             \
-            memcpy(data, (da)->data, (da)->capacity * sizeof(*(da)->data));                                            \
+            memcpy(data, (da)->data, (da)->count * sizeof(*(da)->data));                                               \
             free((da)->data);                                                                                          \
             (da)->data = data;                                                                                         \
             (da)->capacity = capacity;                                                                                 \
@@ -143,9 +148,7 @@ __attribute__((format(printf, 2, 3))) static inline int sp_log(Sp_Log_Level log_
 #define sp_da_free(da)                                                                                                 \
     do {                                                                                                               \
         free((da)->data);                                                                                              \
-        (da)->data = NULL;                                                                                             \
-        (da)->count = 0;                                                                                               \
-        (da)->capacity = 0;                                                                                            \
+        memset((da), 0, sizeof(*(da)));                                                                                \
     } while (0)
 
 typedef Sp_Dynamic_Array(char) Sp_String_Builder;
@@ -175,15 +178,13 @@ __attribute__((format(printf, 2, 3))) static inline int sp_sb_appendf(Sp_String_
     return count;
 }
 
-static inline Sp_String_Builder sp_cstr_to_sb(const char* cstr) {
+static inline Sp_String_Builder sp_cstr_to_sb(const char *cstr) {
     Sp_String_Builder sb = {0};
     sp_sb_appendf(&sb, "%s", cstr);
     return sb;
 }
 
-static inline const char *sp_sb_cstr(Sp_String_Builder* sb) {
-    return sb->data;
-}
+static inline const char *sp_sb_cstr(Sp_String_Builder *sb) { return sb->data; }
 
 #define Sp_Queue(T)                                                                                                    \
     struct {                                                                                                           \
@@ -237,11 +238,7 @@ static inline const char *sp_sb_cstr(Sp_String_Builder* sb) {
 #define sp_queue_free(queue)                                                                                           \
     do {                                                                                                               \
         free((queue)->data);                                                                                           \
-        (queue)->data = NULL;                                                                                          \
-        (queue)->count = 0;                                                                                            \
-        (queue)->head = 0;                                                                                             \
-        (queue)->tail = 0;                                                                                             \
-        (queue)->capacity = 0;                                                                                         \
+        memset((queue), 0, sizeof(*(queue)));                                                                          \
     } while (0)
 
 typedef struct sp_ll_node {
@@ -260,7 +257,7 @@ typedef struct sp_ll_node {
 /* Returns the type of the underlying data stored within the Sp_Linked_List. */
 #define sp_ll_type(ll) __typeof__((ll)->type)
 /* Returns a pointer of `sp_ll_type(ll)` to the underlying data stored at `sp_ll_node* node`. */
-#define sp_ll_node_unwrap(ll, node) ((sp_ll_type(ll)*) (node)->data)
+#define sp_ll_node_unwrap(ll, node) ((sp_ll_type(ll) *) (node)->data)
 
 #define sp_ll_push_back(ll, element)                                                                                   \
     do {                                                                                                               \
@@ -347,150 +344,102 @@ static inline uint32_t hash_fnv(const char *data, const size_t bytes) {
     return hash;
 }
 
-// size_t hash_to_idx(const char* key, size_t capacity) {}
+static inline uint32_t sp_ht_streq(const char *s1, const char *s2) { return (uint32_t) !strcmp(s1, s2); }
 
 /*
- * Hash table implementation with open addressing collision resolution.
+ * Hash table implementation with closed addressing collision resolution, where buckets are backed by Sp_Dynamic_Array.
  *
  * Re-hashes entire table at 2x capacity on insertion when load factor reaches the ratio as defined by
- * `SP_HT_LOAD_CAPACITY` (default = 0.75).
+ * `SP_HT_LOAD_CAPACITY` (default = 0.9).
  */
-#define Sp_Hash_Table(T)                                                                                               \
+// TODO: strlen is undefined for non string types, meaning only const char* keys are supported as of right now
+// TODO: duplicate keys is not implemented
+#define Sp_Hash_Table(K, T)                                                                                            \
     struct {                                                                                                           \
-        struct {                                                                                                       \
-            char *key;                                                                                                 \
+        Sp_Dynamic_Array(Sp_Dynamic_Array(struct {                                                                     \
+            K key;                                                                                                     \
             T value;                                                                                                   \
-        } *nodes;                                                                                                      \
+        })) table;                                                                                                     \
         size_t count;                                                                                                  \
-        size_t capacity;                                                                                               \
+        uint32_t (*hash)(K, const size_t);                                                                             \
+        uint32_t (*equal)(K, K);                                                                                       \
     }
 
-#define sp_ht_node_ptr(ht) __typeof__((ht)->nodes)
+#define sp_ht_node_t(ht) __typeof__(*(ht)->table.data->data)
+#define sp_ht_key_type(ht) __typeof__((ht)->table.data->data->key)
+#define sp_ht_value_type(ht) __typeof__((ht)->table.data->data->value)
 
+#define SP_HT_LOAD_CAPACITY 0.9
 #define SP_HT_INIT_CAP 16
-#define SP_HT_LOAD_CAPACITY 0.75
+
 #define sp_ht_reserve(ht, __expected__)                                                                                \
     do {                                                                                                               \
         const size_t expected = (__expected__);                                                                        \
-        if ((ht)->capacity < expected) {                                                                               \
-            if ((ht)->capacity == 0) {                                                                                 \
-                (ht)->capacity = SP_HT_INIT_CAP;                                                                       \
+        if (!(ht)->hash) {                                                                                             \
+            (ht)->hash = _Generic((ht)->table.data->data->key, const char *: &hash_fnv, default: NULL);                \
+        }                                                                                                              \
+        if (!(ht)->equal) {                                                                                            \
+            (ht)->equal = _Generic((ht)->table.data->data->key, const char *: &sp_ht_streq, default: NULL);            \
+        }                                                                                                              \
+        if ((ht)->table.capacity == 0) {                                                                               \
+            sp_da_resize(&(ht)->table, expected < SP_HT_INIT_CAP ? expected : SP_HT_INIT_CAP);                         \
+        } else if ((ht)->count > 0) {                                                                                  \
+            __typeof__((ht)->table) old_table = (ht)->table;                                                           \
+            (ht)->table = (__typeof__((ht)->table)) {0};                                                               \
+            sp_da_resize(&(ht)->table, expected);                                                                      \
+            for (size_t macro_var(i) = 0; macro_var(i) < old_table.count; ++macro_var(i)) {                            \
+                for (size_t macro_var(j) = 0; macro_var(j) < sp_da_get(&old_table, macro_var(i)).count;                \
+                     ++macro_var(j)) {                                                                                 \
+                    sp_da_push(                                                                                        \
+                        &(ht)->table.data[(ht)->hash(old_table.data[macro_var(i)].data[macro_var(j)].key,              \
+                                                     strlen(old_table.data[macro_var(i)].data[macro_var(j)].key)) %    \
+                                          (ht)->table.capacity],                                                       \
+                        old_table.data[macro_var(i)].data[macro_var(j)]);                                              \
+                }                                                                                                      \
+                sp_da_free(&(sp_da_get(&old_table, macro_var(i))));                                                    \
             }                                                                                                          \
-            size_t old_capacity = (ht)->capacity;                                                                      \
-            while ((ht)->capacity < (size_t) (SP_HT_LOAD_CAPACITY * (double) expected)) {                              \
-                (ht)->capacity *= 2;                                                                                   \
-            }                                                                                                          \
-            if (!(ht)->nodes) {                                                                                        \
-                (ht)->nodes = calloc((ht)->capacity, sizeof(*(ht)->nodes));                                            \
-            } else {                                                                                                   \
-                sp_ht_rehash((ht), old_capacity);                                                                      \
+            sp_da_free(&old_table);                                                                                    \
+        }                                                                                                              \
+    } while (0)
+
+/* Points `sp_ht_node_t_ptr` to the `sp_ht_node_t` instance containing the key, or NULL if not found.
+ * This pointer can be invalidated by any subsequent instructions to the `Sp_Hash_Table` object. */
+#define sp_ht_get(ht, __key__, sp_ht_node_t_ptr)                                                                       \
+    do {                                                                                                               \
+        if ((sp_ht_node_t_ptr)) {                                                                                      \
+            size_t macro_var(idx) = (ht)->hash((__key__), strlen(__key__)) % (ht)->table.capacity;                     \
+            for (size_t macro_var(i) = 0; macro_var(i) < sp_da_get(&(ht)->table, macro_var(idx)).count;                \
+                 ++macro_var(i)) {                                                                                     \
+                if (!(ht)->equal((__key__),                                                                            \
+                                 sp_da_get(&(sp_da_get(&(ht)->table, macro_var(idx))), macro_var(i)).key)) {           \
+                    continue;                                                                                          \
+                } else {                                                                                               \
+                    *((sp_ht_node_t(ht) **) (sp_ht_node_t_ptr)) =                                                      \
+                        &(sp_da_get(&sp_da_get(&(ht)->table, macro_var(idx)), macro_var(i)));                          \
+                }                                                                                                      \
             }                                                                                                          \
         }                                                                                                              \
     } while (0)
 
-#define sp_ht_rehash(ht, __old_capacity__)                                                                             \
+#define sp_ht_insert(ht, __key__, __value__)                                                                           \
     do {                                                                                                               \
-        size_t CONCAT(old_capacity, __LINE__) = __old_capacity__;                                                      \
-        sp_ht_node_ptr((ht)) old_nodes = (ht)->nodes;                                                                  \
-        (ht)->nodes = calloc((ht)->capacity, sizeof(*(ht)->nodes));                                                    \
-        for (size_t i = 0; i < CONCAT(old_capacity, __LINE__); ++i) {                                                  \
-            if (!old_nodes[i].key) {                                                                                   \
-                continue;                                                                                              \
-            }                                                                                                          \
-            size_t index = sp_ht_hash((ht), old_nodes[i].key);                                                         \
-            sp_ht_node_insert((ht), index, old_nodes[i].key, old_nodes[i].value);                                      \
-            free(old_nodes[i].key);                                                                                    \
+        if ((ht)->table.capacity == 0) {                                                                               \
+            sp_ht_reserve((ht), SP_HT_INIT_CAP);                                                                       \
+        } else if ((double) (ht)->count > (SP_HT_LOAD_CAPACITY * (double) (ht)->table.capacity)) {                     \
+            sp_ht_reserve((ht), (ht)->table.capacity * 2);                                                             \
         }                                                                                                              \
-        free(old_nodes);                                                                                               \
-    } while (0)
-
-/*
- * WARNING: Uses non-standard statement expressions, which may not be supported by all C compilers.
- *
- * If the table contains the key, an index to the node with the key and its associated value will be returned.
- * If the table does not contain the key, an index to an empty node will be returned.
- *
- * ERRORS
- * If open addressing collision resolution cannot find an empty node, the capacity of the hash table will be
- * returned. In this case, you would most likely need to regrow the hash table.
- */
-#define sp_ht_hash(ht, expected_key)                                                                                   \
-    ({                                                                                                                 \
-        size_t index = hash_fnv((expected_key), strlen((expected_key))) % (ht)->capacity;                              \
-        while (index < (ht)->capacity) {                                                                               \
-            if (!(ht)->nodes[index].key) {                                                                             \
-                break;                                                                                                 \
-            } else if (strcmp((ht)->nodes[index].key, (expected_key)) == 0) {                                          \
-                break;                                                                                                 \
-            }                                                                                                          \
-            ++index;                                                                                                   \
-        }                                                                                                              \
-        index;                                                                                                         \
-    })
-
-#define sp_ht_node_insert(ht, index, expected_key, element)                                                            \
-    do {                                                                                                               \
-        if (!(ht)->nodes[index].key) {                                                                                 \
-            (ht)->nodes[index].key = malloc(strlen((expected_key)) + 1);                                               \
-            strncpy((ht)->nodes[index].key, (expected_key), strlen((expected_key)));                                   \
-            (ht)->nodes[index].key[strlen((expected_key))] = '\0';                                                     \
-            ++(ht)->count;                                                                                             \
-        }                                                                                                              \
-        (ht)->nodes[index].value = element;                                                                            \
-    } while (0)
-
-#define sp_ht_insert(ht, expected_key, e)                                                                              \
-    do {                                                                                                               \
-        sp_ht_reserve((ht), (ht)->count + 1);                                                                          \
-        while (sp_ht_hash((ht), (expected_key)) == (ht)->capacity) {                                                   \
-            sp_ht_reserve((ht), (ht)->capacity * 2);                                                                   \
-        }                                                                                                              \
-        __typeof__(e) element = e;                                                                                     \
-        size_t index = sp_ht_hash((ht), (expected_key));                                                               \
-        sp_ht_node_insert((ht), index, (expected_key), element);                                                       \
-    } while (0)
-
-/*
- * WARNING: Uses non-standard statement expressions, which may not be supported by all C compilers.
- *
- * Returns an `sp_ht_node_ptr(ht)`, or a pointer to the node of the value of `expected_key`, or NULL if not
- * found.
- */
-#define sp_ht_get(ht, expected_key)                                                                                    \
-    (sp_ht_hash((ht), (expected_key)) != (ht)->capacity                                                                \
-         ? ((ht)->nodes[sp_ht_hash((ht), (expected_key))].key ? &((ht)->nodes[sp_ht_hash((ht), (expected_key))])       \
-                                                              : NULL)                                                  \
-         : NULL)
-
-/*
- * TODO: FOR DEBUGGING PURPOSES ONLY, REMOVE LATER MOST LIKELY
- */
-#define sp_ht_print(ht)                                                                                                \
-    do {                                                                                                               \
-        for (size_t i = 0; i < (ht)->capacity; ++i) {                                                                  \
-            printf("%ld: ", i);                                                                                        \
-            if (!(ht)->nodes[i].key) {                                                                                 \
-                putchar('\n');                                                                                         \
-                continue;                                                                                              \
-            } else {                                                                                                   \
-                printf("\"%s\" -> %d\n", (ht)->nodes[i].key, (ht)->nodes[i].value);                                    \
-            }                                                                                                          \
-        }                                                                                                              \
+        size_t macro_var(idx) = (ht)->hash(__key__, strlen(__key__)) % (ht)->table.capacity;                           \
+        sp_da_push(&(ht)->table.data[macro_var(idx)], ((sp_ht_node_t(ht)) {.key = __key__, .value = __value__}));      \
+        ++(ht)->count;                                                                                                 \
     } while (0)
 
 #define sp_ht_free(ht)                                                                                                 \
     do {                                                                                                               \
-        for (size_t i = 0; i < (ht)->capacity; ++i) {                                                                  \
-            if (!(ht)->nodes[i].key) {                                                                                 \
-                continue;                                                                                              \
-            }                                                                                                          \
-            free((ht)->nodes[i].key);                                                                                  \
-            (ht)->nodes[i].key = NULL;                                                                                 \
+        for (size_t macro_var(i) = 0; macro_var(i) < (ht)->table.count; ++macro_var(i)) {                              \
+            sp_da_free(&(ht)->table.data[macro_var(i)]);                                                               \
         }                                                                                                              \
-        free((ht)->nodes);                                                                                             \
-        (ht)->nodes = NULL;                                                                                            \
-        (ht)->count = 0;                                                                                               \
-        (ht)->capacity = 0;                                                                                            \
+        sp_da_free(&(ht)->table);                                                                                      \
+        memset((ht), 0, sizeof(*(ht)));                                                                                \
     } while (0)
 
 #endif
