@@ -353,7 +353,6 @@ static inline uint32_t sp_ht_streq(const char *s1, const char *s2) { return (uin
  * `SP_HT_LOAD_CAPACITY` (default = 0.9).
  */
 // TODO: strlen is undefined for non string types, meaning only const char* keys are supported as of right now
-// TODO: duplicate keys is not implemented
 #define Sp_Hash_Table(K, T)                                                                                            \
     struct {                                                                                                           \
         Sp_Dynamic_Array(Sp_Dynamic_Array(struct {                                                                     \
@@ -414,8 +413,7 @@ static inline uint32_t sp_ht_streq(const char *s1, const char *s2) { return (uin
                                  sp_da_get(&(sp_da_get(&(ht)->table, macro_var(idx))), macro_var(i)).key)) {           \
                     continue;                                                                                          \
                 } else {                                                                                               \
-                    *((sp_ht_node_t(ht) **) (sp_ht_node_t_ptr)) =                                                      \
-                        &(sp_da_get(&sp_da_get(&(ht)->table, macro_var(idx)), macro_var(i)));                          \
+                    *((sp_ht_node_t_ptr)) = &(sp_da_get(&sp_da_get(&(ht)->table, macro_var(idx)), macro_var(i)));      \
                 }                                                                                                      \
             }                                                                                                          \
         }                                                                                                              \
@@ -429,8 +427,15 @@ static inline uint32_t sp_ht_streq(const char *s1, const char *s2) { return (uin
             sp_ht_reserve((ht), (ht)->table.capacity * 2);                                                             \
         }                                                                                                              \
         size_t macro_var(idx) = (ht)->hash(__key__, strlen(__key__)) % (ht)->table.capacity;                           \
+        for (size_t macro_var(i) = 0; macro_var(i) < (ht)->table.data[macro_var(idx)].count; ++macro_var(i)) {         \
+            if ((ht)->equal(__key__, (ht)->table.data[macro_var(idx)].data[macro_var(i)].key)) {                       \
+                (ht)->table.data[macro_var(idx)].data[macro_var(i)].value = __value__;                                 \
+                goto macro_var(sp_ht_insert_end);                                                                      \
+            }                                                                                                          \
+        }                                                                                                              \
         sp_da_push(&(ht)->table.data[macro_var(idx)], ((sp_ht_node_t(ht)) {.key = __key__, .value = __value__}));      \
         ++(ht)->count;                                                                                                 \
+        macro_var(sp_ht_insert_end) : break;                                                                           \
     } while (0)
 
 #define sp_ht_free(ht)                                                                                                 \
