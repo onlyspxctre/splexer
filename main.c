@@ -6,7 +6,7 @@ int main(int argc, char** argv) {
 
     Sp_Lexer splexer = {0};
 
-    splexer_init(&splexer, "hello.c", SP_TOKEN_REGISTRY);
+    splexer_init(&splexer, "hello.c");
 
     // Sp_String_Builder parsed = {0};
 
@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
     // printf("\n------------------------------------------------\n");
     printf("IR (Ast):\n");
     for (size_t i = 0; i < splexer.tokens.count; ++i) {
-        printf("%s", splexer.tokens.data[i].sb.data);
+        printf("\'%s\': %s\n", splexer.tokens.data[i].sb.data, SPLEXER_TOKENS_LITERAL[splexer.tokens.data[i].type]);
     }
     // printf("\n------------------------------------------------\n");
     // printf("parsed.count: %ld\n", parsed.count);

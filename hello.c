@@ -1,4 +1,4 @@
-#include <stdbool.h>
+#            include <stdbool.h>
 
 extern int printf(const char* format, ...);
 
@@ -9,6 +9,7 @@ int main() {
     b = 66.0;
     b = 67.0f;
     b = .2f;
+    b = .2f5;
 
     if (a == b) {
         a + b;

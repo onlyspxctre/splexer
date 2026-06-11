@@ -8,87 +8,112 @@ bool splexer_char_is_valid(char c) {
     return false;
 }
 
-void splexer_init(Sp_Lexer* splexer, const char* path, const char** tokens) {
-    if (!splexer) return;
-    for (int i = 0; i < TOK_Unknown; ++i) {
-        if (!tokens[i]) {
-            sp_log(SP_WARNING, "No matching token found in kw_table! Skipping...");
-            continue;
+void splexer_init(Sp_Lexer *splexer, const char *path) {
+    if (!splexer) {
+        return;
+    }
+    for (Sp_Lexer_Tokens i = 0; i < TOK_Unknown; ++i) {
+        switch (i) {
+            case TOK_ID:
+            case TOK_IntLiteral:
+            case TOK_FloatLiteral:
+                break;
+            default:
+                if (!SPLEXER_TOKEN_REGISTRY[i]) {
+                    sp_log(SP_WARNING, "No matching token found in kw_table! Skipping...");
+                    continue;
+                }
+                sp_ht_insert(&splexer->tok_table, SPLEXER_TOKEN_REGISTRY[i], i);
+                break;
         }
-        sp_ht_insert(&splexer->tok_table, tokens[i], i);
     }
     splexer->f = fopen(path, "rb");
+    splexer_token_clear(&splexer->tok);
 }
 
-int splexer_token_append(Sp_Lexer_Token* token, char c) {
-    switch (token->type) {
-        case TOK_TYPE_IDENTIFIER:
+bool splexer_token_append(Sp_Lexer *splexer, char c) {
+    if (splexer->tok.sb.count > 0 && (c == '\n' || c == ';')) {
+        return false;
+    }
+    switch (splexer->tok.type) {
+        case TOK_ID:
             if (!splexer_char_is_valid(c)) {
                 return 0; /* False */
             }
             break;
-        case TOK_TYPE_INTLITERAL:
+        case TOK_IntLiteral:
             if (!isdigit(c)) {
                 if (c == '.') {
-                    token->type = TOK_TYPE_FLOATLITERAL;
-                }
-                else if (splexer_char_is_valid(c)) {
-                    token->type = TOK_TYPE_IDENTIFIER;
-                }
-                else {
-                    return 0;
+                    splexer->tok.type = TOK_FloatLiteral;
+                } else {
+                    return false;
                 }
             }
             break;
-        case TOK_TYPE_FLOATLITERAL: /* TODO: suffixes to determine literal type */
-            if (!isdigit(c)) {
-                if (tolower(c) == 'f' || tolower(c) == 'l') { // suffix literal type
-                    break;
+        case TOK_FloatLiteral:
+            for (size_t i = 0; i < splexer->tok.sb.count; ++i) {
+                if (splexer->tok.sb.data[splexer->tok.sb.count - 1 - i] != 'f' &&
+                    splexer->tok.sb.data[splexer->tok.sb.count - 1 - i] != 'l') {
+                    continue;
                 }
-
-                // Cannot append non-digit character after decimal point on a float literal
-                return 0;
+                // literal was suffixed but there are extra chars (parse error)
+                splexer->tok.type = TOK_Unknown;
+                return false;
             }
-            break;
-        case TOK_TYPE_OPERATOR:
-            if (token->sb.data[token->sb.count - 1] == '.') {
-                if (isdigit(c) || tolower(c) == 'f' || tolower(c) == 'l') {
-                    token->type = TOK_TYPE_FLOATLITERAL;
-                    break;
-                }
+            if (isdigit(c)) {
+                break;
+            }
+            if ((tolower(c) == 'f' || tolower(c) == 'l')) { // suffix literal type
+                break;
+            }
+            return false; // Cannot append non-digit character after decimal point on a float literal
+        case TOK_Period:
+            if (isdigit(c) || tolower(c) == 'f' || tolower(c) == 'l') {
+                splexer->tok.type = TOK_FloatLiteral;
+                break;
+            }
+            goto def;
+        case TOK_Unknown:
+            if (isdigit(c)) {
+                splexer->tok.type = TOK_IntLiteral;
+                break;
             }
             if (splexer_char_is_valid(c)) {
-                return 0;
+                splexer->tok.type = TOK_ID;
+                break;
             }
-            break;
-        case TOK_TYPE_UNKNOWN:
-            if (isdigit(c)) {
-                token->type = TOK_TYPE_INTLITERAL;
-            }
-            else if (splexer_char_is_valid(c)) {
-                token->type = TOK_TYPE_IDENTIFIER;
-            }
-            else {
-                token->type = TOK_TYPE_OPERATOR;
-            }
-            break;
+            goto def;
         default:
-            sp_unreachable();
-            break;
+        def:
+            if (splexer_char_is_valid(c)) {
+                return false;
+            }
+            sp_sb_appendf(&splexer->tok.sb, "%c", c);
+            sp_ht_node_t(&splexer->tok_table) *query = NULL;
+            sp_ht_get(&splexer->tok_table, splexer->tok.sb.data, &query);
+            if (query) {
+                splexer->tok.type = query->value;
+            }
+            return true;
     }
 
-    sp_sb_appendf(&token->sb, "%c", c);
-    return 1;
+    sp_sb_appendf(&splexer->tok.sb, "%c", c);
+    return true;
 }
 
-void splexer_token_clear(Sp_Lexer_Token* token) {
+void splexer_token_clear(Sp_Lexer_Token *token) {
     sp_da_clear(&token->sb);
-    token->type = TOK_TYPE_UNKNOWN;
+    token->type = TOK_Unknown;
 }
 
-void splexer_tokenize(Sp_Lexer* splexer) {
-    sp_ht_node_t(&splexer->tok_table)* tok_query = NULL;
+void splexer_tokenize(Sp_Lexer *splexer) {
+    sp_ht_node_t(&splexer->tok_table) *tok_query = NULL;
     char buffer[2] = "\0";
+
+    Sp_Lexer_Token token = (Sp_Lexer_Token) {
+        .type = TOK_Unknown,
+        .sb = {0},
+    };
 
     while (fread(buffer, 1, 1, splexer->f) != 0) {
         switch (splexer->state) {
@@ -97,11 +122,11 @@ void splexer_tokenize(Sp_Lexer* splexer) {
                     continue;
                 }
                 splexer->state = SPLEXER_TOKENIZE;
-                splexer_token_append(&splexer->tok, *buffer);
+                splexer_token_append(splexer, *buffer);
                 break;
             case SPLEXER_TOKENIZE:
                 /* TODO: Revamp the system yet again, smart type evaluation and float literal handling */
-                if (!splexer_token_append(&splexer->tok, *buffer)) {
+                if (!splexer_token_append(splexer, *buffer)) {
                     if (*buffer != ' ') {
                         fseek(splexer->f, -1, SEEK_CUR);
                     }
@@ -116,50 +141,35 @@ void splexer_tokenize(Sp_Lexer* splexer) {
 
 lex:
     switch (splexer->tok.type) {
-        case TOK_TYPE_IDENTIFIER:
-            sp_ht_get(&splexer->tok_table, splexer->tok.sb.data, &tok_query);
-            if (tok_query) {
-                Sp_Lexer_Token token = (Sp_Lexer_Token) {
-                    .type = TOK_TYPE_KEYWORD,
-                    .sb = {0},
-                };
-                sp_sb_appendf(&token.sb, "\'%s\' ", tok_query->key);
-
-                sp_da_push(&splexer->tokens, token);
-            } else {
-                Sp_Lexer_Token token = (Sp_Lexer_Token) {
-                    .type = TOK_TYPE_IDENTIFIER,
-                    .sb = {0},
-                };
-                sp_sb_appendf(&token.sb, "\'%s\' ", splexer->tok.sb.data);
-
-                sp_da_push(&splexer->tokens, token);
-            }
-            goto done;
-        case TOK_TYPE_INTLITERAL:
-        case TOK_TYPE_FLOATLITERAL:
-            1 + 2; // TODO: Remove
-            Sp_Lexer_Token token = (Sp_Lexer_Token) {
-                .type = splexer->tok.type,
-                .sb = {0},
-            };
-            sp_sb_appendf(&token.sb, "\'%s\' ", splexer->tok.sb.data);
-
+        case TOK_Unknown:
+            token.type = TOK_Unknown;
+            sp_sb_appendf(&token.sb, "%s", splexer->tok.sb.data);
             sp_da_push(&splexer->tokens, token);
             goto done;
-        case TOK_TYPE_OPERATOR:
+        case TOK_ID:
+            token.type = TOK_ID;
+            sp_sb_appendf(&token.sb, "%s", splexer->tok.sb.data);
+            sp_da_push(&splexer->tokens, token);
+            goto done;
+        case TOK_IntLiteral:
+        case TOK_FloatLiteral:
+            token.type = splexer->tok.type;
+            sp_sb_appendf(&token.sb, "%s", splexer->tok.sb.data);
+            sp_da_push(&splexer->tokens, token);
+            goto done;
+        default:
             while (splexer->tok.sb.count) {
                 sp_ht_get(&splexer->tok_table, splexer->tok.sb.data, &tok_query);
                 if (tok_query) {
                     Sp_Lexer_Token token = (Sp_Lexer_Token) {
-                        .type = TOK_TYPE_OPERATOR,
+                        .type = tok_query->value,
                         .sb = {0},
                     };
 
                     if (*tok_query->key == '\n') {
-                        sp_sb_appendf(&token.sb, "\n");
+                        sp_sb_appendf(&token.sb, "\\n");
                     } else {
-                        sp_sb_appendf(&token.sb, "\'%s\' ", tok_query->key);
+                        sp_sb_appendf(&token.sb, "%s", tok_query->key);
                     }
 
                     sp_da_push(&splexer->tokens, token);
@@ -175,9 +185,6 @@ lex:
             sp_log(SP_ERROR, "splexer_tokenize could not find any matching operator! Terminating...");
             splexer->state = SPLEXER_TERMINATE;
             return;
-        default:
-            sp_unreachable();
-            break;
     }
 
 done:
@@ -185,7 +192,7 @@ done:
     splexer->state = feof(splexer->f) ? SPLEXER_TERMINATE : SPLEXER_IDLE;
 }
 
-void splexer_destroy(Sp_Lexer* splexer) {
+void splexer_destroy(Sp_Lexer *splexer) {
     if (splexer->f) {
         fclose(splexer->f);
     }

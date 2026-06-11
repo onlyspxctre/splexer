@@ -6,8 +6,10 @@
 
 #include "sptl.h"
 
-enum Sp_Tokens {
+typedef enum {
     TOK_ID,
+    TOK_IntLiteral,
+    TOK_FloatLiteral,
     TOK_LeftParen,
     TOK_RightParen,
     TOK_LeftBraces,
@@ -42,9 +44,9 @@ enum Sp_Tokens {
     TOK_OrOr,
     TOK_Pound,
     TOK_Unknown,
-};
+} Sp_Lexer_Tokens;
 
-static const char* SP_TOKEN_REGISTRY[] = {
+static const char* SPLEXER_TOKEN_REGISTRY[] = {
     [TOK_LeftParen] = "(",
     [TOK_RightParen] = ")",
     [TOK_LeftBraces] = "{",
@@ -80,8 +82,10 @@ static const char* SP_TOKEN_REGISTRY[] = {
     [TOK_Pound] = "#",
 };
 
-static const char* SP_TOKENS_LITERAL[] = {
-    [TOK_ID] = "TOK_ID",
+static const char* SPLEXER_TOKENS_LITERAL[] = {
+    [TOK_ID]           = "TOK_ID",
+    [TOK_IntLiteral]   = "TOK_IntLiteral",
+    [TOK_FloatLiteral] = "TOK_FloatLiteral",
     [TOK_LeftParen]    = "TOK_LeftParen",
     [TOK_RightParen]   = "TOK_RightParen",
     [TOK_LeftBraces]   = "TOK_LeftBraces",
@@ -115,19 +119,11 @@ static const char* SP_TOKENS_LITERAL[] = {
     [TOK_AndAnd]       = "TOK_AndAnd",
     [TOK_OrOr]         = "TOK_OrOr",
     [TOK_Pound]        = "TOK_Pound",
+    [TOK_Unknown]      = "TOK_Unknown",
 };
 
-typedef enum {
-    TOK_TYPE_UNKNOWN,
-    TOK_TYPE_KEYWORD,
-    TOK_TYPE_OPERATOR,
-    TOK_TYPE_IDENTIFIER,
-    TOK_TYPE_INTLITERAL,
-    TOK_TYPE_FLOATLITERAL,
-} Sp_Lexer_Token_Type;
-
 typedef struct {
-    Sp_Lexer_Token_Type type;
+    Sp_Lexer_Tokens type;
     Sp_String_Builder sb;
 } Sp_Lexer_Token;
 
@@ -140,7 +136,7 @@ typedef enum {
 typedef struct {
     FILE* f;
 
-    Sp_Hash_Table(const char*, int) tok_table;
+    Sp_Hash_Table(const char*, Sp_Lexer_Tokens) tok_table;
 
     Sp_Lexer_Token tok;
 
@@ -153,9 +149,9 @@ typedef struct {
  */
 bool splexer_char_is_valid(char c);
 
-void splexer_init(Sp_Lexer* splexer, const char* path, const char** tokens);
+void splexer_init(Sp_Lexer* splexer, const char* path);
 
-int splexer_token_append(Sp_Lexer_Token* token, char c);
+bool splexer_token_append(Sp_Lexer* splexer, char c);
 void splexer_token_clear(Sp_Lexer_Token* token);
 
 void splexer_tokenize(Sp_Lexer* splexer);
