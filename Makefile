@@ -1,18 +1,22 @@
 .PHONY: all clean
 
-splexer.o: splexer.c
-	clang -Wall -Wextra -ggdb -fPIC -c splexer.c
+BUILDDIR := ./build
+OBJDIR := ./obj
 
-libsplexer.so: splexer.o
-	mkdir -p build/
-	gcc -shared splexer.o -o build/libsplexer.so
+%.o: %.c
+	mkdir -p $(OBJDIR)
+	clang -Wall -Wextra -ggdb -fPIC -o $(OBJDIR)/$@ -c $<
 
-libsplexer.a: splexer.o
-	mkdir -p build/
-	ar rcs build/libsplexer.a splexer.o
+lib%.so: %.o
+	mkdir -p $(BUILDDIR)
+	gcc -shared $(OBJDIR)/$< -o $(BUILDDIR)/$@
+
+lib%.a: %.o
+	mkdir -p $(BUILDDIR)
+	ar rcs $(BUILDDIR)/$@ $(OBJDIR)/$<
 
 main: main.c libsplexer.so libsplexer.a
-	clang -Wall -Wextra -ggdb -o main main.c -L./build -I. -l:libsplexer.so
+	clang -Wall -Wextra -ggdb -o $@ $< -L$(BUILDDIR) -I. -l:libsplexer.so
 
 valgrind: main
 	LD_LIBRARY_PATH=./build valgrind --leak-check=full --track-origins=yes ./main
