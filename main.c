@@ -21,7 +21,10 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < splexer.tokens.count; ++i) {
         printf("\'%s\': %s", splexer.tokens.data[i].sb.data, SPLEXER_TOKENS_LITERAL[splexer.tokens.data[i].type]);
         if (splexer.tokens.data[i].type == TOK_FloatLiteral) {
-            printf(" | suffixes: \'%s\'", splexer.tokens.data[i].float_lit.suffixes);
+            printf(" | value: %.2f | suffixes: \'%s\'", splexer.tokens.data[i].float_lit.value, splexer.tokens.data[i].float_lit.suffixes);
+        }
+        else if (splexer.tokens.data[i].type == TOK_IntLiteral) {
+            printf(" | value: %ld | suffixes: \'%s\'", splexer.tokens.data[i].int_lit.value, splexer.tokens.data[i].int_lit.suffixes);
         }
         putchar('\n');
     }

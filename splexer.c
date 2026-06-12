@@ -1,7 +1,7 @@
 #include "splexer.h"
 #include <ctype.h>
 
-bool splexer_char_is_valid(char c) {
+bool splexer_char_is_valid_id(char c) {
     if (isalnum(c) || c == '_') {
         return true;
     }
@@ -31,18 +31,13 @@ void splexer_init(Sp_Lexer *splexer, const char *path) {
     splexer_token_clear(splexer);
 }
 
-/* Evaluates whether a given character `c` could be appended to the current working token.
- *
- * Returns 1 if the given character was appended, or 2 if the given character was consumed.
- * If the given character cannot be inserted nor was consumed, this function returns 0.
- * */
 int splexer_token_append(Sp_Lexer *splexer, char c) {
     if (splexer->tok.sb.count > 0 && (c == '\n' || c == ';')) {
         return 0;
     }
     switch (splexer->tok.type) {
         case TOK_ID:
-            if (!splexer_char_is_valid(c)) {
+            if (!splexer_char_is_valid_id(c)) {
                 return 0;
             }
             break;
@@ -81,14 +76,14 @@ int splexer_token_append(Sp_Lexer *splexer, char c) {
                 splexer->tok.type = TOK_IntLiteral;
                 break;
             }
-            if (splexer_char_is_valid(c)) {
+            if (splexer_char_is_valid_id(c)) {
                 splexer->tok.type = TOK_ID;
                 break;
             }
             goto def;
         default:
         def:
-            if (splexer_char_is_valid(c)) {
+            if (splexer_char_is_valid_id(c)) {
                 return 0;
             }
             sp_sb_appendf(&splexer->tok.sb, "%c", c);
@@ -131,7 +126,7 @@ void splexer_tokenize(Sp_Lexer *splexer) {
                 splexer_token_append(splexer, *buffer);
                 break;
             case SPLEXER_TOKENIZE:
-                /* TODO: Revamp the system yet again, smart type evaluation and float literal handling */
+                // if token was not consumed or inserted, we begin lexing current token
                 if (!(tok_status = splexer_token_append(splexer, *buffer))) {
                     fseek(splexer->f, -1, SEEK_CUR);
                     goto lex;
@@ -156,9 +151,16 @@ lex:
             sp_da_push(&splexer->tokens, token);
             goto done;
         case TOK_IntLiteral:
+            token.type = splexer->tok.type;
+            token.int_lit = splexer->tok.int_lit;
+            token.int_lit.value = atol(splexer->tok.sb.data);
+            sp_sb_appendf(&token.sb, "%s", splexer->tok.sb.data);
+            sp_da_push(&splexer->tokens, token);
+            goto done;
         case TOK_FloatLiteral:
             token.type = splexer->tok.type;
             token.float_lit = splexer->tok.float_lit;
+            token.float_lit.value = atof(splexer->tok.sb.data);
             sp_sb_appendf(&token.sb, "%s", splexer->tok.sb.data);
             sp_da_push(&splexer->tokens, token);
             goto done;
