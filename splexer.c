@@ -98,10 +98,11 @@ int splexer_token_append(Sp_Lexer *splexer, char c) {
     return 1;
 }
 
-void splexer_token_clear(Sp_Lexer* splexer) {
+void splexer_token_clear(Sp_Lexer *splexer) {
     sp_da_clear(&splexer->tok.sb);
     splexer->tok = (Sp_Lexer_Token) {
         .type = TOK_Unknown,
+        .sb = splexer->tok.sb,
     };
 }
 
