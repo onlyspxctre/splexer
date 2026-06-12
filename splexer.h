@@ -125,6 +125,13 @@ static const char* SPLEXER_TOKENS_LITERAL[] = {
 typedef struct {
     Sp_Lexer_Tokens type;
     Sp_String_Builder sb;
+    union {
+        struct {
+            long double value;
+            char suffixes[32];
+            size_t suffixes_count;
+        } float_lit;
+    };
 } Sp_Lexer_Token;
 
 typedef enum {
@@ -151,8 +158,8 @@ bool splexer_char_is_valid(char c);
 
 void splexer_init(Sp_Lexer* splexer, const char* path);
 
-bool splexer_token_append(Sp_Lexer* splexer, char c);
-void splexer_token_clear(Sp_Lexer_Token* token);
+int splexer_token_append(Sp_Lexer* splexer, char c);
+void splexer_token_clear(Sp_Lexer* splexer);
 
 void splexer_tokenize(Sp_Lexer* splexer);
 void splexer_destroy(Sp_Lexer* splexer);

@@ -28,17 +28,22 @@ void splexer_init(Sp_Lexer *splexer, const char *path) {
         }
     }
     splexer->f = fopen(path, "rb");
-    splexer_token_clear(&splexer->tok);
+    splexer_token_clear(splexer);
 }
 
-bool splexer_token_append(Sp_Lexer *splexer, char c) {
+/* Evaluates whether a given character `c` could be appended to the current working token.
+ *
+ * Returns 1 if the given character was appended, or 2 if the given character was consumed.
+ * If the given character cannot be inserted nor was consumed, this function returns 0.
+ * */
+int splexer_token_append(Sp_Lexer *splexer, char c) {
     if (splexer->tok.sb.count > 0 && (c == '\n' || c == ';')) {
-        return false;
+        return 0;
     }
     switch (splexer->tok.type) {
         case TOK_ID:
             if (!splexer_char_is_valid(c)) {
-                return 0; /* False */
+                return 0;
             }
             break;
         case TOK_IntLiteral:
@@ -46,27 +51,25 @@ bool splexer_token_append(Sp_Lexer *splexer, char c) {
                 if (c == '.') {
                     splexer->tok.type = TOK_FloatLiteral;
                 } else {
-                    return false;
+                    return 0;
                 }
             }
             break;
         case TOK_FloatLiteral:
-            for (size_t i = 0; i < splexer->tok.sb.count; ++i) {
-                if (splexer->tok.sb.data[splexer->tok.sb.count - 1 - i] != 'f' &&
-                    splexer->tok.sb.data[splexer->tok.sb.count - 1 - i] != 'l') {
-                    continue;
-                }
-                // literal was suffixed but there are extra chars (parse error)
-                splexer->tok.type = TOK_Unknown;
-                return false;
+            if (splexer->tok.float_lit.suffixes_count > 0) {
+                return 2;
             }
+
             if (isdigit(c)) {
                 break;
             }
-            if ((tolower(c) == 'f' || tolower(c) == 'l')) { // suffix literal type
-                break;
+
+            if (isalpha(c)) {
+                splexer->tok.float_lit.suffixes[splexer->tok.float_lit.suffixes_count++] = c;
+                splexer->tok.float_lit.suffixes[splexer->tok.float_lit.suffixes_count] = '\0';
+                return 1;
             }
-            return false; // Cannot append non-digit character after decimal point on a float literal
+            break;
         case TOK_Period:
             if (isdigit(c) || tolower(c) == 'f' || tolower(c) == 'l') {
                 splexer->tok.type = TOK_FloatLiteral;
@@ -86,7 +89,7 @@ bool splexer_token_append(Sp_Lexer *splexer, char c) {
         default:
         def:
             if (splexer_char_is_valid(c)) {
-                return false;
+                return 0;
             }
             sp_sb_appendf(&splexer->tok.sb, "%c", c);
             sp_ht_node_t(&splexer->tok_table) *query = NULL;
@@ -94,16 +97,18 @@ bool splexer_token_append(Sp_Lexer *splexer, char c) {
             if (query) {
                 splexer->tok.type = query->value;
             }
-            return true;
+            return 1;
     }
 
     sp_sb_appendf(&splexer->tok.sb, "%c", c);
-    return true;
+    return 1;
 }
 
-void splexer_token_clear(Sp_Lexer_Token *token) {
-    sp_da_clear(&token->sb);
-    token->type = TOK_Unknown;
+void splexer_token_clear(Sp_Lexer* splexer) {
+    sp_da_clear(&splexer->tok.sb);
+    splexer->tok = (Sp_Lexer_Token) {
+        .type = TOK_Unknown,
+    };
 }
 
 void splexer_tokenize(Sp_Lexer *splexer) {
@@ -115,6 +120,7 @@ void splexer_tokenize(Sp_Lexer *splexer) {
         .sb = {0},
     };
 
+    int tok_status;
     while (fread(buffer, 1, 1, splexer->f) != 0) {
         switch (splexer->state) {
             case SPLEXER_IDLE:
@@ -126,10 +132,8 @@ void splexer_tokenize(Sp_Lexer *splexer) {
                 break;
             case SPLEXER_TOKENIZE:
                 /* TODO: Revamp the system yet again, smart type evaluation and float literal handling */
-                if (!splexer_token_append(splexer, *buffer)) {
-                    if (*buffer != ' ') {
-                        fseek(splexer->f, -1, SEEK_CUR);
-                    }
+                if (!(tok_status = splexer_token_append(splexer, *buffer))) {
+                    fseek(splexer->f, -1, SEEK_CUR);
                     goto lex;
                 }
                 break;
@@ -154,6 +158,7 @@ lex:
         case TOK_IntLiteral:
         case TOK_FloatLiteral:
             token.type = splexer->tok.type;
+            token.float_lit = splexer->tok.float_lit;
             sp_sb_appendf(&token.sb, "%s", splexer->tok.sb.data);
             sp_da_push(&splexer->tokens, token);
             goto done;
@@ -188,7 +193,7 @@ lex:
     }
 
 done:
-    splexer_token_clear(&splexer->tok);
+    splexer_token_clear(splexer);
     splexer->state = feof(splexer->f) ? SPLEXER_TERMINATE : SPLEXER_IDLE;
 }
 

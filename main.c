@@ -19,7 +19,11 @@ int main(int argc, char** argv) {
     // printf("\n------------------------------------------------\n");
     printf("IR (Ast):\n");
     for (size_t i = 0; i < splexer.tokens.count; ++i) {
-        printf("\'%s\': %s\n", splexer.tokens.data[i].sb.data, SPLEXER_TOKENS_LITERAL[splexer.tokens.data[i].type]);
+        printf("\'%s\': %s", splexer.tokens.data[i].sb.data, SPLEXER_TOKENS_LITERAL[splexer.tokens.data[i].type]);
+        if (splexer.tokens.data[i].type == TOK_FloatLiteral) {
+            printf(" | suffixes: \'%s\'", splexer.tokens.data[i].float_lit.suffixes);
+        }
+        putchar('\n');
     }
     // printf("\n------------------------------------------------\n");
     // printf("parsed.count: %ld\n", parsed.count);
