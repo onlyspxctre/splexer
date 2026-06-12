@@ -10,6 +10,8 @@ int main() {
     b = 67.0f;
     b = .2f;
     b = .2f5;
+    "werwer"notsupposedtobeinstring;
+    '1234 i  i i dfsdf\'#$##$fant\n';
 
     if (a == b) {
         a + b;

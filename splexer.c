@@ -8,6 +8,26 @@ bool splexer_char_is_valid_id(char c) {
     return false;
 }
 
+/* Takes an escaped character and returns its escaped equivalent, if available.
+ *
+ * If the escaped character is invalid, this function returns 0. */
+static inline char splexer_char_interpret_escape(char escaped_char) {
+    switch (escaped_char) {
+        case 'n':  return '\n'; // Newline
+        case 't':  return '\t'; // Horizontal tab
+        case 'r':  return '\r'; // Carriage return
+        case 'b':  return '\b'; // Backspace
+        case 'a':  return '\a'; // Alert/Bell
+        case 'f':  return '\f'; // Form feed
+        case 'v':  return '\v'; // Vertical tab
+        case '\\': return '\\'; // Literal backslash
+        case '\'': return '\''; // Single quote
+        case '\"': return '\"'; // Double quote
+        case '?':  return '\?'; // Question mark
+        default:   return 0;
+    }
+}
+
 void splexer_init(Sp_Lexer *splexer, const char *path) {
     if (!splexer) {
         return;
@@ -17,6 +37,8 @@ void splexer_init(Sp_Lexer *splexer, const char *path) {
             case TOK_ID:
             case TOK_IntLiteral:
             case TOK_FloatLiteral:
+            case TOK_DQStringLiteral:
+            case TOK_SQStringLiteral:
                 break;
             default:
                 if (!SPLEXER_TOKEN_REGISTRY[i]) {
@@ -59,9 +81,26 @@ int splexer_token_append(Sp_Lexer *splexer, char c) {
                 splexer->tok.float_lit.suffixes[splexer->tok.float_lit.suffixes_count++] = c;
                 splexer->tok.float_lit.suffixes[splexer->tok.float_lit.suffixes_count] = '\0';
                 return 1;
-            }
-            else if (isdigit(c)) {
+            } else if (isdigit(c)) {
                 break;
+            }
+            break;
+        case TOK_DQStringLiteral:
+        case TOK_SQStringLiteral:
+            if (splexer->tok.sb.data[splexer->tok.sb.count - 1] == '\\') {
+                char escaped;
+                if ((escaped = splexer_char_interpret_escape(c))) {
+                    splexer->tok.sb.data[splexer->tok.sb.count - 1] = escaped;
+                    return 1;
+                }
+            }
+
+            // ending the string literal
+            if (splexer->tok.type == TOK_DQStringLiteral && c == '\"') {
+                return 2;
+            }
+            if (splexer->tok.type == TOK_SQStringLiteral && c == '\'') {
+                return 2;
             }
             break;
         case TOK_Period:
@@ -69,11 +108,21 @@ int splexer_token_append(Sp_Lexer *splexer, char c) {
                 splexer->tok.type = TOK_FloatLiteral;
                 break;
             }
-            goto def;
+            goto def; // we go to default generic operator handling
         case TOK_Unknown:
             if (isdigit(c)) {
                 splexer->tok.type = TOK_IntLiteral;
                 break;
+            }
+            switch (c) {
+                case '\"':
+                    splexer->tok.type = TOK_DQStringLiteral;
+                    return 2; // consume the quote
+                case '\'':
+                    splexer->tok.type = TOK_SQStringLiteral;
+                    return 2;
+                default:
+                    break;
             }
             if (splexer_char_is_valid_id(c)) {
                 splexer->tok.type = TOK_ID;
@@ -127,8 +176,8 @@ void splexer_tokenize(Sp_Lexer *splexer) {
                 break;
             case SPLEXER_TOKENIZE:
                 // if token was not consumed or inserted, we begin lexing current token
-                if (!(tok_status = splexer_token_append(splexer, *buffer))) {
-                    fseek(splexer->f, -1, SEEK_CUR);
+                if ((tok_status = splexer_token_append(splexer, *buffer)) != 1) {
+                    if (tok_status == 0) fseek(splexer->f, -1, SEEK_CUR);
                     goto lex;
                 }
                 break;
@@ -141,11 +190,13 @@ void splexer_tokenize(Sp_Lexer *splexer) {
 lex:
     switch (splexer->tok.type) {
         case TOK_Unknown:
-            token.type = TOK_Unknown;
+        case TOK_ID:
+        case TOK_DQStringLiteral:
+        case TOK_SQStringLiteral:
+            token.type = splexer->tok.type;
             sp_sb_appendf(&token.sb, "%s", splexer->tok.sb.data);
             sp_da_push(&splexer->tokens, token);
             goto done;
-        case TOK_ID:
             token.type = TOK_ID;
             sp_sb_appendf(&token.sb, "%s", splexer->tok.sb.data);
             sp_da_push(&splexer->tokens, token);
