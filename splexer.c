@@ -51,18 +51,17 @@ int splexer_token_append(Sp_Lexer *splexer, char c) {
             }
             break;
         case TOK_FloatLiteral:
-            if (splexer->tok.float_lit.suffixes_count > 0) {
+            if (splexer->tok.float_lit.suffixes_count >= 32) {
                 return 2;
             }
 
-            if (isdigit(c)) {
-                break;
-            }
-
-            if (isalpha(c)) {
+            if (splexer->tok.float_lit.suffixes_count > 0 || isalpha(c)) {
                 splexer->tok.float_lit.suffixes[splexer->tok.float_lit.suffixes_count++] = c;
                 splexer->tok.float_lit.suffixes[splexer->tok.float_lit.suffixes_count] = '\0';
                 return 1;
+            }
+            else if (isdigit(c)) {
+                break;
             }
             break;
         case TOK_Period:
