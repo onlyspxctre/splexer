@@ -64,16 +64,24 @@ int splexer_token_append(Sp_Lexer *splexer, char c) {
             }
             break;
         case TOK_IntLiteral:
-            if (!isdigit(c)) {
-                if (c == '.') {
-                    splexer->tok.type = TOK_FloatLiteral;
-                } else {
-                    return 0;
-                }
+            if (splexer->tok.int_lit.suffixes_count >= 31) {
+                return 2;
             }
-            break;
+
+            if (splexer->tok.int_lit.suffixes_count > 0 || isalpha(c)) {
+                splexer->tok.int_lit.suffixes[splexer->tok.int_lit.suffixes_count++] = c;
+                splexer->tok.int_lit.suffixes[splexer->tok.int_lit.suffixes_count] = '\0';
+                return 1;
+            } else if (isdigit(c)) {
+                break;
+            }
+            else if (c == '.') {
+                splexer->tok.type = TOK_FloatLiteral;
+                break;
+            }
+            return 0;
         case TOK_FloatLiteral:
-            if (splexer->tok.float_lit.suffixes_count >= 32) {
+            if (splexer->tok.float_lit.suffixes_count >= 31) {
                 return 2;
             }
 
@@ -84,7 +92,7 @@ int splexer_token_append(Sp_Lexer *splexer, char c) {
             } else if (isdigit(c)) {
                 break;
             }
-            break;
+            return 0;
         case TOK_DQStringLiteral:
         case TOK_SQStringLiteral:
             if (splexer->tok.sb.data[splexer->tok.sb.count - 1] == '\\') {

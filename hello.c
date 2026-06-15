@@ -6,6 +6,8 @@ int main() {
     int a;
     float b;
     a = 65;
+    a = 65L;
+    a = 65L534535;
     b = 66.0;
     b = 67.0f;
     b = .2f;
