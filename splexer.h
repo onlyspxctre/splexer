@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#include "sptl.h"
+#include <sptl.h>
 
 typedef enum {
     TOK_ID,
