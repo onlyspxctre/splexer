@@ -2,9 +2,14 @@
 
 extern int printf(const char* format, ...);
 
+// nocomments
+// fucker //sdfsdf
+/* this is a comment
+ * */
+
 int main() {
-    int a;
-    float b;
+    int a; // comments on an int
+    float b; // comments on a float
     a = 65;
     a = 65L;
     a = 65L534535;
@@ -14,6 +19,8 @@ int main() {
     b = .2f5;
     "werwer"notsupposedtobeinstring;
     '1234 i  i i dfsdf\'#$##$fant\n';
+    "if";
+    "inter";
 
     if (a == b) {
         a + b;

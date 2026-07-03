@@ -146,6 +146,8 @@ typedef struct {
 typedef enum {
     SPLEXER_IDLE,
     SPLEXER_TOKENIZE,
+    SPLEXER_COMMENT,
+    SPLEXER_MULTICOMMENT,
     SPLEXER_TERMINATE,
 } Sp_Lexer_State;
 

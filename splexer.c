@@ -117,6 +117,17 @@ int splexer_token_append(Sp_Lexer *splexer, char c) {
                 break;
             }
             goto def; // we go to default generic operator handling
+        case TOK_Slash:
+            if (c == '/') {
+                splexer->state = SPLEXER_COMMENT;
+                splexer_token_clear(splexer);
+                return 1;
+            } else if (c == '*') {
+                splexer->state = SPLEXER_MULTICOMMENT;
+                splexer_token_clear(splexer);
+                return 1;
+            }
+            goto def;
         case TOK_Unknown:
             if (isdigit(c)) {
                 splexer->tok.type = TOK_IntLiteral;
@@ -187,6 +198,21 @@ void splexer_tokenize(Sp_Lexer *splexer) {
                 if ((tok_status = splexer_token_append(splexer, *buffer)) != 1) {
                     if (tok_status == 0) fseek(splexer->f, -1, SEEK_CUR);
                     goto lex;
+                }
+                break;
+            case SPLEXER_COMMENT:
+                if (*buffer != '\n') {
+                    continue;
+                }
+                splexer->state = SPLEXER_IDLE;
+                break;
+            case SPLEXER_MULTICOMMENT:
+                if (splexer->tok.sb.data[splexer->tok.sb.count - 1] == '*' && *buffer == '/') {
+                    splexer->state = SPLEXER_IDLE;
+                    splexer_token_clear(splexer);
+                }
+                else {
+                    sp_sb_appendf(&splexer->tok.sb, "%c", *buffer);
                 }
                 break;
             case SPLEXER_TERMINATE:
