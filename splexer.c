@@ -28,10 +28,16 @@ static inline char splexer_char_interpret_escape(char escaped_char) {
     }
 }
 
-void splexer_init(Sp_Lexer *splexer, const char *path) {
+int splexer_init(Sp_Lexer *splexer, const char *path) {
     if (!splexer) {
-        return;
+        return 1;
     }
+
+    splexer->f = fopen(path, "rb");
+    if (!splexer->f) {
+        return 1;
+    }
+
     for (Sp_Lexer_Tokens i = 0; i < TOK_Unknown; ++i) {
         switch (i) {
             case TOK_ID:
@@ -49,8 +55,9 @@ void splexer_init(Sp_Lexer *splexer, const char *path) {
                 break;
         }
     }
-    splexer->f = fopen(path, "rb");
+
     splexer_token_clear(splexer);
+    return 0;
 }
 
 int splexer_token_append(Sp_Lexer *splexer, char c) {

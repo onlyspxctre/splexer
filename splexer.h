@@ -167,7 +167,10 @@ typedef struct {
  */
 bool splexer_char_is_valid_id(char c);
 
-void splexer_init(Sp_Lexer* splexer, const char* path);
+/*
+ * Initializes an instance of Sp_Lexer. Returns 1 if splexer is NULL or path is invalid, and 0 otherwise.
+ */
+int splexer_init(Sp_Lexer* splexer, const char* path);
 
 /* Evaluates whether a given character `c` could be appended to the current working token.
  *
