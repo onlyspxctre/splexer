@@ -1,13 +1,16 @@
-.PHONY: all clean
+export BUILDDIR := $(abspath ./build)
+export OBJDIR := $(abspath ./obj)
+export INCLUDEDIR := $(abspath ./include)
 
-BUILDDIR := ./build
-OBJDIR := ./obj
-INCLUDEDIR := ./include
+EXAMPLEDIR := ./examples
+EXAMPLES := assembler
 
-CC := clang
-CFLAGS := -Wall -Wextra -std=c11 -fcolor-diagnostics -I$(INCLUDEDIR)
+export CC := clang
+export CFLAGS := -Wall -Wextra -std=c11 -fcolor-diagnostics -I$(INCLUDEDIR)
 
-all: main
+.PHONY: all clean $(EXAMPLES)
+
+all: main $(EXAMPLES)
 
 main: main.c $(BUILDDIR)/libsplexer.so
 	$(CC) $(CFLAGS) -ggdb -o $@ $< -L$(BUILDDIR) -I. -l:libsplexer.so
@@ -30,6 +33,9 @@ $(INCLUDEDIR)/sptl.h:
 
 valgrind: main
 	LD_LIBRARY_PATH=./build valgrind --leak-check=full --track-origins=yes ./main
+
+$(EXAMPLES):
+	$(MAKE) -C $(EXAMPLEDIR)/$@
 
 clean:
 	rm -rf *.o
