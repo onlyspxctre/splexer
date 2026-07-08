@@ -5,6 +5,12 @@
 
 typedef enum { ARG_REG, ARG_IMM } Arg;
 typedef enum { REG_NIL, REG_A, REG_B } Register;
+typedef enum {
+    ALU_NOT,
+    ALU_AND,
+    ALU_OR,
+    ALU_ADD,
+} ALUOp;
 
 typedef struct {
     Sp_Lexer *splexer;
@@ -168,13 +174,27 @@ static inline int load(Parser *parser) {
     return 0;
 }
 
-static inline int add(Parser *parser) { 
+static inline int alu_op(Parser *parser, ALUOp op) {
     parser_next_token(parser);
     if (parser_interpret(parser) != 0) {
         return 1;
     }
 
-    parser->MSC = "011";
+    switch (op) {
+        case ALU_NOT:
+            parser->MSC = "010";
+            break;
+        case ALU_AND:
+            parser->MSC = "011";
+            break;
+        case ALU_OR:
+            parser->MSC = "100";
+            break;
+        case ALU_ADD:
+            parser->MSC = "101";
+            break;
+    }
+
     switch (parser->lhs) {
         case REG_A:
             parser->MSA = "11";
@@ -245,8 +265,23 @@ int main(int argc, char **argv) {
                 sp_log(SP_ERROR, "Line %d: Error assembling instruction: LOAD", TODO_LINE);
                 return 1;
             }
+        } else if (strcmp(token->sb.data, "NOT") == 0) {
+            if (alu_op(&parser, ALU_NOT) != 0) {
+                sp_log(SP_ERROR, "Line %d: Error assembling instruction: NOT", TODO_LINE);
+                return 1;
+            }
+        } else if (strcmp(token->sb.data, "AND") == 0) {
+            if (alu_op(&parser, ALU_AND) != 0) {
+                sp_log(SP_ERROR, "Line %d: Error assembling instruction: AND", TODO_LINE);
+                return 1;
+            }
+        } else if (strcmp(token->sb.data, "OR") == 0) {
+            if (alu_op(&parser, ALU_OR) != 0) {
+                sp_log(SP_ERROR, "Line %d: Error assembling instruction: OR", TODO_LINE);
+                return 1;
+            }
         } else if (strcmp(token->sb.data, "ADD") == 0) {
-            if (add(&parser) != 0) {
+            if (alu_op(&parser, ALU_ADD) != 0) {
                 sp_log(SP_ERROR, "Line %d: Error assembling instruction: ADD", TODO_LINE);
                 return 1;
             }
