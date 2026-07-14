@@ -13,18 +13,18 @@ bool splexer_char_is_valid_id(char c) {
  * If the escaped character is invalid, this function returns 0. */
 static inline char splexer_char_interpret_escape(char escaped_char) {
     switch (escaped_char) {
-        case 'n':  return '\n'; // Newline
-        case 't':  return '\t'; // Horizontal tab
-        case 'r':  return '\r'; // Carriage return
-        case 'b':  return '\b'; // Backspace
-        case 'a':  return '\a'; // Alert/Bell
-        case 'f':  return '\f'; // Form feed
-        case 'v':  return '\v'; // Vertical tab
+        case 'n': return '\n';  // Newline
+        case 't': return '\t';  // Horizontal tab
+        case 'r': return '\r';  // Carriage return
+        case 'b': return '\b';  // Backspace
+        case 'a': return '\a';  // Alert/Bell
+        case 'f': return '\f';  // Form feed
+        case 'v': return '\v';  // Vertical tab
         case '\\': return '\\'; // Literal backslash
         case '\'': return '\''; // Single quote
         case '\"': return '\"'; // Double quote
-        case '?':  return '\?'; // Question mark
-        default:   return 0;
+        case '?': return '\?';  // Question mark
+        default: return 0;
     }
 }
 
@@ -81,8 +81,7 @@ int splexer_token_append(Sp_Lexer *splexer, char c) {
                 return 1;
             } else if (isdigit(c)) {
                 break;
-            }
-            else if (c == '.') {
+            } else if (c == '.') {
                 splexer->tok.type = TOK_FloatLiteral;
                 break;
             }
@@ -217,8 +216,7 @@ void splexer_tokenize(Sp_Lexer *splexer) {
                 if (splexer->tok.sb.data[splexer->tok.sb.count - 1] == '*' && *buffer == '/') {
                     splexer->state = SPLEXER_IDLE;
                     splexer_token_clear(splexer);
-                }
-                else {
+                } else {
                     sp_sb_appendf(&splexer->tok.sb, "%c", *buffer);
                 }
                 break;
