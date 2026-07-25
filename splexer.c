@@ -135,23 +135,25 @@ int splexer_token_append(Sp_Lexer *splexer, char c) {
             }
             goto def;
         case TOK_Unknown:
-            if (isdigit(c)) {
-                splexer->tok.type = TOK_IntLiteral;
-                break;
-            }
-            switch (c) {
-                case '\"':
-                    splexer->tok.type = TOK_DQStringLiteral;
-                    return 2; // consume the quote
-                case '\'':
-                    splexer->tok.type = TOK_SQStringLiteral;
-                    return 2;
-                default:
+            if (splexer->tok.sb.count == 0) {
+                if (isdigit(c)) {
+                    splexer->tok.type = TOK_IntLiteral;
                     break;
-            }
-            if (splexer_char_is_valid_id(c)) {
-                splexer->tok.type = TOK_ID;
-                break;
+                }
+                switch (c) {
+                    case '\"':
+                        splexer->tok.type = TOK_DQStringLiteral;
+                        return 2; // consume the quote
+                    case '\'':
+                        splexer->tok.type = TOK_SQStringLiteral;
+                        return 2;
+                    default:
+                        break;
+                }
+                if (splexer_char_is_valid_id(c)) {
+                    splexer->tok.type = TOK_ID;
+                    break;
+                }
             }
             goto def;
         default:

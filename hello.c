@@ -1,4 +1,6 @@
 #            include <stdbool.h>
+$
+#$1232
 
 extern int printf(const char* format, ...);
 
