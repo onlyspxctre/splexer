@@ -212,6 +212,7 @@ void splexer_tokenize(Sp_Lexer *splexer) {
                 if (*buffer != '\n') {
                     continue;
                 }
+                fseek(splexer->f, -1, SEEK_CUR);
                 splexer->state = SPLEXER_IDLE;
                 break;
             case SPLEXER_MULTICOMMENT:
