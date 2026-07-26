@@ -24,6 +24,8 @@ else
 export CC := clang
 export CFLAGS := -Wall -Wextra -std=c11 -fcolor-diagnostics -I$(INCLUDEDIR)
 
+all: $(BUILDDIR)/libsplexer.so $(BUILDDIR)/libsplexer.a
+
 main: main.c $(BUILDDIR)/libsplexer.so
 	$(CC) $(CFLAGS) -ggdb -o $@ $< -L$(BUILDDIR) -I. -l:libsplexer.so
 
@@ -31,7 +33,7 @@ $(BUILDDIR)/lib%.so: $(OBJDIR)/%.o
 	mkdir -p $(BUILDDIR)
 	$(CC) -shared $< -o $@
 
-$(BUIlDDIR)/lib%.a: $(OBJDIR)/%.o
+$(BUILDDIR)/lib%.a: $(OBJDIR)/%.o
 	mkdir -p $(BUILDDIR)
 	ar rcs $@ $<
 
