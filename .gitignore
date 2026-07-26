@@ -5,6 +5,11 @@ obj/
 include/
 
 main
+
 *.o
 *.so
 *.a
+
+# Windows
+*.exe
+*.dll

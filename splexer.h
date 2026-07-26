@@ -165,23 +165,23 @@ typedef struct {
 /*
  * Returns 1 (true) if `c` is a valid character in an identifier, and 0 (false) if not.
  */
-bool splexer_char_is_valid_id(char c);
+SPExtern bool splexer_char_is_valid_id(char c);
 
 /*
  * Initializes an instance of Sp_Lexer. Returns 1 if splexer is NULL or path is invalid, and 0 otherwise.
  */
-int splexer_init(Sp_Lexer *splexer, const char *path);
+SPExtern int splexer_init(Sp_Lexer *splexer, const char *path);
 
 /* Evaluates whether a given character `c` could be appended to the current working token.
  *
  * Returns 1 if the given character was appended, or 2 if the given character was consumed.
  * If the given character cannot be inserted nor was consumed, this function returns 0.
  * */
-int splexer_token_append(Sp_Lexer *splexer, char c);
+SPExtern int splexer_token_append(Sp_Lexer *splexer, char c);
 
-void splexer_token_clear(Sp_Lexer *splexer);
+SPExtern void splexer_token_clear(Sp_Lexer *splexer);
 
-void splexer_tokenize(Sp_Lexer *splexer);
-void splexer_destroy(Sp_Lexer *splexer);
+SPExtern void splexer_tokenize(Sp_Lexer *splexer);
+SPExtern void splexer_destroy(Sp_Lexer *splexer);
 
 #endif
