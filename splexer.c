@@ -33,8 +33,8 @@ int splexer_init(Sp_Lexer *splexer, const char *path) {
         return 1;
     }
 
-    splexer->f = fopen(path, "rb");
-    if (!splexer->f) {
+    FILE *f = fopen(path, "rb");
+    if (!f) {
         return 1;
     }
 
@@ -51,22 +51,31 @@ int splexer_init(Sp_Lexer *splexer, const char *path) {
                     sp_log(SP_WARNING, "No matching token found in kw_table! Skipping...");
                     continue;
                 }
-                sp_ht_insert(&splexer->tok_table, SPLEXER_TOKEN_REGISTRY[i], i);
+                sp_ht_insert(&splexer->tok_table, sp_cstr_slice(SPLEXER_TOKEN_REGISTRY[i]), i);
                 break;
         }
     }
 
     splexer_token_clear(splexer);
+
+    char buffer;
+    while (fread(&buffer, 1, 1, f) != 0) {
+        sp_sb_appendf(&splexer->file, "%c", buffer);
+    }
+
+    fclose(f);
     return 0;
 }
 
-int splexer_token_append(Sp_Lexer *splexer, char c) {
-    if (splexer->tok.sb.count > 0 && (c == '\n' || c == ';')) {
+int splexer_token_append(Sp_Lexer *splexer, const char *c) {
+    if (!c) return 0;
+
+    if (splexer->tok.sv.count > 0 && (*c == '\n' || *c == ';')) {
         return 0;
     }
     switch (splexer->tok.type) {
         case TOK_ID:
-            if (!splexer_char_is_valid_id(c)) {
+            if (!splexer_char_is_valid_id(*c)) {
                 return 0;
             }
             break;
@@ -75,13 +84,13 @@ int splexer_token_append(Sp_Lexer *splexer, char c) {
                 return 2;
             }
 
-            if (splexer->tok.int_lit.suffixes_count > 0 || isalpha(c)) {
-                splexer->tok.int_lit.suffixes[splexer->tok.int_lit.suffixes_count++] = c;
+            if (splexer->tok.int_lit.suffixes_count > 0 || isalpha(*c)) {
+                splexer->tok.int_lit.suffixes[splexer->tok.int_lit.suffixes_count++] = *c;
                 splexer->tok.int_lit.suffixes[splexer->tok.int_lit.suffixes_count] = '\0';
                 return 1;
-            } else if (isdigit(c)) {
+            } else if (isdigit(*c)) {
                 break;
-            } else if (c == '.') {
+            } else if (*c == '.') {
                 splexer->tok.type = TOK_FloatLiteral;
                 break;
             }
@@ -91,56 +100,57 @@ int splexer_token_append(Sp_Lexer *splexer, char c) {
                 return 2;
             }
 
-            if (splexer->tok.float_lit.suffixes_count > 0 || isalpha(c)) {
-                splexer->tok.float_lit.suffixes[splexer->tok.float_lit.suffixes_count++] = c;
+            if (splexer->tok.float_lit.suffixes_count > 0 || isalpha(*c)) {
+                splexer->tok.float_lit.suffixes[splexer->tok.float_lit.suffixes_count++] = *c;
                 splexer->tok.float_lit.suffixes[splexer->tok.float_lit.suffixes_count] = '\0';
                 return 1;
-            } else if (isdigit(c)) {
+            } else if (isdigit(*c)) {
                 break;
             }
             return 0;
         case TOK_DQStringLiteral:
         case TOK_SQStringLiteral:
-            if (splexer->tok.sb.data[splexer->tok.sb.count - 1] == '\\') {
-                char escaped;
-                if ((escaped = splexer_char_interpret_escape(c))) {
-                    splexer->tok.sb.data[splexer->tok.sb.count - 1] = escaped;
-                    return 1;
-                }
-            }
+            // TODO: reimplement escape codes support with string view
+            // if (splexer->tok.str.ptr[splexer->tok.str.count - 1] == '\\') {
+            //     char escaped;
+            //     if ((escaped = splexer_char_interpret_escape(*c))) {
+            //         splexer->tok.str.ptr[splexer->tok.str.count - 1] = escaped;
+            //         return 1;
+            //     }
+            // }
 
             // ending the string literal
-            if (splexer->tok.type == TOK_DQStringLiteral && c == '\"') {
+            if (splexer->tok.type == TOK_DQStringLiteral && *c == '\"') {
                 return 2;
             }
-            if (splexer->tok.type == TOK_SQStringLiteral && c == '\'') {
+            if (splexer->tok.type == TOK_SQStringLiteral && *c == '\'') {
                 return 2;
             }
             break;
         case TOK_Period:
-            if (isdigit(c) || tolower(c) == 'f' || tolower(c) == 'l') {
+            if (isdigit(*c) || tolower(*c) == 'f' || tolower(*c) == 'l') {
                 splexer->tok.type = TOK_FloatLiteral;
                 break;
             }
             goto def; // we go to default generic operator handling
         case TOK_Slash:
-            if (c == '/') {
+            if (*c == '/') {
                 splexer->state = SPLEXER_COMMENT;
                 splexer_token_clear(splexer);
                 return 1;
-            } else if (c == '*') {
+            } else if (*c == '*') {
                 splexer->state = SPLEXER_MULTICOMMENT;
                 splexer_token_clear(splexer);
                 return 1;
             }
             goto def;
         case TOK_Unknown:
-            if (splexer->tok.sb.count == 0) {
-                if (isdigit(c)) {
+            if (splexer->tok.sv.count == 0) {
+                if (isdigit(*c)) {
                     splexer->tok.type = TOK_IntLiteral;
                     break;
                 }
-                switch (c) {
+                switch (*c) {
                     case '\"':
                         splexer->tok.type = TOK_DQStringLiteral;
                         return 2; // consume the quote
@@ -150,7 +160,7 @@ int splexer_token_append(Sp_Lexer *splexer, char c) {
                     default:
                         break;
                 }
-                if (splexer_char_is_valid_id(c)) {
+                if (splexer_char_is_valid_id(*c)) {
                     splexer->tok.type = TOK_ID;
                     break;
                 }
@@ -158,69 +168,71 @@ int splexer_token_append(Sp_Lexer *splexer, char c) {
             goto def;
         default:
         def:
-            if (splexer_char_is_valid_id(c)) {
+            if (splexer_char_is_valid_id(*c)) {
                 return 0;
             }
-            sp_sb_appendf(&splexer->tok.sb, "%c", c);
+            if (!splexer->tok.sv.ptr) {
+                splexer->tok.sv.ptr = c;
+                splexer->tok.sv.count = 1;
+
+            } else {
+                ++splexer->tok.sv.count;
+            }
             sp_ht_node_t(&splexer->tok_table) *query = NULL;
-            sp_ht_get(&splexer->tok_table, splexer->tok.sb.data, &query);
+            sp_ht_get(&splexer->tok_table, splexer->tok.sv, &query);
             if (query) {
                 splexer->tok.type = query->value;
             }
             return 1;
     }
 
-    sp_sb_appendf(&splexer->tok.sb, "%c", c);
+    if (!splexer->tok.sv.ptr) {
+        splexer->tok.sv.ptr = c;
+        splexer->tok.sv.count = 1;
+
+    } else {
+        ++splexer->tok.sv.count;
+    }
     return 1;
 }
 
 void splexer_token_clear(Sp_Lexer *splexer) {
-    sp_da_clear(&splexer->tok.sb);
     splexer->tok = (Sp_Lexer_Token) {
         .type = TOK_Unknown,
-        .sb = splexer->tok.sb,
+        .sv = {0},
     };
 }
 
 void splexer_tokenize(Sp_Lexer *splexer) {
     sp_ht_node_t(&splexer->tok_table) *tok_query = NULL;
-    char buffer[2] = "\0";
-
-    Sp_Lexer_Token token = (Sp_Lexer_Token) {
-        .type = TOK_Unknown,
-        .sb = {0},
-    };
-
     int tok_status;
-    while (fread(buffer, 1, 1, splexer->f) != 0) {
+    for (; splexer->file_idx < splexer->file.count; ++splexer->file_idx) {
+
         switch (splexer->state) {
             case SPLEXER_IDLE:
-                if (*buffer == ' ') {
+                if (splexer->file.data[splexer->file_idx] == ' ') {
                     continue;
                 }
                 splexer->state = SPLEXER_TOKENIZE;
-                splexer_token_append(splexer, *buffer);
+                splexer_token_append(splexer, splexer->file.data + splexer->file_idx);
                 break;
             case SPLEXER_TOKENIZE:
                 // if token was not consumed or inserted, we begin lexing current token
-                if ((tok_status = splexer_token_append(splexer, *buffer)) != 1) {
-                    if (tok_status == 0) fseek(splexer->f, -1, SEEK_CUR);
+                if ((tok_status = splexer_token_append(splexer, splexer->file.data + splexer->file_idx)) != 1) {
+                    // if (tok_status == 0) --splexer->file_idx;
                     goto lex;
                 }
                 break;
             case SPLEXER_COMMENT:
-                if (*buffer != '\n') {
+                if (splexer->file.data[splexer->file_idx] != '\n') {
                     continue;
                 }
-                fseek(splexer->f, -1, SEEK_CUR);
+                --splexer->file_idx;
                 splexer->state = SPLEXER_IDLE;
                 break;
             case SPLEXER_MULTICOMMENT:
-                if (splexer->tok.sb.data[splexer->tok.sb.count - 1] == '*' && *buffer == '/') {
+                if (splexer->file.data[splexer->file_idx - 1] == '*' && splexer->file.data[splexer->file_idx] == '/') {
                     splexer->state = SPLEXER_IDLE;
-                    splexer_token_clear(splexer);
-                } else {
-                    sp_sb_appendf(&splexer->tok.sb, "%c", *buffer);
                 }
                 break;
             case SPLEXER_TERMINATE:
@@ -235,49 +247,30 @@ lex:
         case TOK_ID:
         case TOK_DQStringLiteral:
         case TOK_SQStringLiteral:
-            token.type = splexer->tok.type;
-            sp_sb_appendf(&token.sb, "%s", splexer->tok.sb.data);
-            sp_da_push(&splexer->tokens, token);
+            sp_da_push(&splexer->tokens, splexer->tok);
             goto done;
-            token.type = TOK_ID;
-            sp_sb_appendf(&token.sb, "%s", splexer->tok.sb.data);
-            sp_da_push(&splexer->tokens, token);
-            goto done;
+            // token.type = TOK_ID;
+            // sp_sb_appendf(&token.sb, "%s", splexer->tok.sb.data);
+            // sp_da_push(&splexer->tokens, token);
+            // goto done;
         case TOK_IntLiteral:
-            token.type = splexer->tok.type;
-            token.int_lit = splexer->tok.int_lit;
-            token.int_lit.value = atol(splexer->tok.sb.data);
-            sp_sb_appendf(&token.sb, "%s", splexer->tok.sb.data);
-            sp_da_push(&splexer->tokens, token);
+            splexer->tok.int_lit.value = strtol(splexer->tok.sv.ptr, NULL, 10);
+            sp_da_push(&splexer->tokens, splexer->tok);
             goto done;
         case TOK_FloatLiteral:
-            token.type = splexer->tok.type;
-            token.float_lit = splexer->tok.float_lit;
-            token.float_lit.value = atof(splexer->tok.sb.data);
-            sp_sb_appendf(&token.sb, "%s", splexer->tok.sb.data);
-            sp_da_push(&splexer->tokens, token);
+            splexer->tok.float_lit.value = strtof(splexer->tok.sv.ptr, NULL);
+            sp_da_push(&splexer->tokens, splexer->tok);
             goto done;
         default:
-            while (splexer->tok.sb.count) {
-                sp_ht_get(&splexer->tok_table, splexer->tok.sb.data, &tok_query);
+            while (splexer->tok.sv.count) {
+                sp_ht_get(&splexer->tok_table, splexer->tok.sv, &tok_query);
                 if (tok_query) {
-                    Sp_Lexer_Token token = (Sp_Lexer_Token) {
-                        .type = tok_query->value,
-                        .sb = {0},
-                    };
-
-                    if (*tok_query->key == '\n') {
-                        sp_sb_appendf(&token.sb, "\\n");
-                    } else {
-                        sp_sb_appendf(&token.sb, "%s", tok_query->key);
-                    }
-
-                    sp_da_push(&splexer->tokens, token);
+                    sp_da_push(&splexer->tokens, splexer->tok);
                     goto done;
                 } else {
                     /* If the current token is NOT found, we pop one character off the end and attempt again */
-                    sp_da_pop(&splexer->tok.sb);
-                    fseek(splexer->f, -1, SEEK_CUR);
+                    --splexer->tok.sv.count;
+                    --splexer->file_idx;
                 }
             }
 
@@ -289,20 +282,13 @@ lex:
 
 done:
     splexer_token_clear(splexer);
-    splexer->state = feof(splexer->f) ? SPLEXER_TERMINATE : SPLEXER_IDLE;
+    splexer->state = splexer->file_idx >= splexer->file.count ? SPLEXER_TERMINATE : SPLEXER_IDLE;
 }
 
 void splexer_destroy(Sp_Lexer *splexer) {
-    if (splexer->f) {
-        fclose(splexer->f);
-    }
-    splexer->f = NULL;
+    sp_da_free(&splexer->file);
 
     sp_ht_free(&splexer->tok_table);
 
-    sp_da_free(&splexer->tok.sb);
-    for (size_t i = 0; i < splexer->tokens.count; ++i) {
-        sp_da_free(&splexer->tokens.data[i].sb);
-    }
     sp_da_free(&splexer->tokens);
 }

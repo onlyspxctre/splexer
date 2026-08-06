@@ -128,7 +128,7 @@ static const char* SPLEXER_TOKENS_LITERAL[] = {
 
 typedef struct {
     Sp_Lexer_Tokens type;
-    Sp_String_Builder sb;
+    Sp_String_View sv;
     union {
         struct {
             long value;
@@ -152,9 +152,10 @@ typedef enum {
 } Sp_Lexer_State;
 
 typedef struct {
-    FILE *f;
+    Sp_String_Builder file;
+    size_t file_idx;
 
-    Sp_Hash_Table(const char *, Sp_Lexer_Tokens) tok_table;
+    Sp_Hash_Table(Sp_String_View, Sp_Lexer_Tokens) tok_table;
 
     Sp_Lexer_Token tok;
 
@@ -177,7 +178,7 @@ SPExtern int splexer_init(Sp_Lexer *splexer, const char *path);
  * Returns 1 if the given character was appended, or 2 if the given character was consumed.
  * If the given character cannot be inserted nor was consumed, this function returns 0.
  * */
-SPExtern int splexer_token_append(Sp_Lexer *splexer, char c);
+SPExtern int splexer_token_append(Sp_Lexer *splexer, const char *c);
 
 SPExtern void splexer_token_clear(Sp_Lexer *splexer);
 
