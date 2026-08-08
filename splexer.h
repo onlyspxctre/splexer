@@ -16,7 +16,6 @@ typedef enum {
     TOK_RightParen,
     TOK_LeftBraces,
     TOK_RightBraces,
-    TOK_Newline,
     TOK_Semicolon,
     TOK_Comma,
     TOK_Period,
@@ -53,7 +52,6 @@ static const char *SPLEXER_TOKEN_REGISTRY[] = {
     [TOK_RightParen] = ")",
     [TOK_LeftBraces] = "{",
     [TOK_RightBraces] = "}",
-    [TOK_Newline] = "\n",
     [TOK_Semicolon] = ";",
     [TOK_Comma] = ",",
     [TOK_Period] = ".",
@@ -94,7 +92,6 @@ static const char* SPLEXER_TOKENS_LITERAL[] = {
     [TOK_RightParen]        = "TOK_RightParen",
     [TOK_LeftBraces]        = "TOK_LeftBraces",
     [TOK_RightBraces]       = "TOK_RightBraces",
-    [TOK_Newline]           = "TOK_Newline",
     [TOK_Semicolon]         = "TOK_Semicolon",
     [TOK_Comma]             = "TOK_Comma",
     [TOK_Period]            = "TOK_Period",
@@ -154,6 +151,7 @@ typedef enum {
 typedef struct {
     Sp_String_Builder file;
     size_t file_idx;
+    Sp_Dynamic_Array(size_t) newlines;
 
     Sp_Hash_Table(Sp_String_View, Sp_Lexer_Tokens) tok_table;
 

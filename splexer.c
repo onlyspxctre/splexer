@@ -59,7 +59,10 @@ int splexer_init(Sp_Lexer *splexer, const char *path) {
     splexer_token_clear(splexer);
 
     char buffer;
-    while (fread(&buffer, 1, 1, f) != 0) {
+    for (size_t count = 0; fread(&buffer, 1, 1, f) != 0; ++count) {
+        if (buffer == '\n') {
+            sp_da_push(&splexer->newlines, count);
+        }
         sp_sb_appendf(&splexer->file, "%c", buffer);
     }
 
@@ -120,10 +123,10 @@ int splexer_token_append(Sp_Lexer *splexer, const char *c) {
             // }
 
             // ending the string literal
-            if (splexer->tok.type == TOK_DQStringLiteral && *c == '\"') {
+            if (splexer->tok.type == TOK_DQStringLiteral && *c == '\"' && splexer->tok.sv.ptr[splexer->tok.sv.count - 1] != '\\') {
                 return 2;
             }
-            if (splexer->tok.type == TOK_SQStringLiteral && *c == '\'') {
+            if (splexer->tok.type == TOK_SQStringLiteral && *c == '\'' && splexer->tok.sv.ptr[splexer->tok.sv.count - 1] != '\\') {
                 return 2;
             }
             break;
@@ -212,6 +215,8 @@ void splexer_tokenize(Sp_Lexer *splexer) {
             case SPLEXER_IDLE:
                 if (splexer->file.data[splexer->file_idx] == ' ') {
                     continue;
+                } else if (splexer->file.data[splexer->file_idx] == '\n') {
+                    continue;
                 }
                 splexer->state = SPLEXER_TOKENIZE;
                 splexer_token_append(splexer, splexer->file.data + splexer->file_idx);
@@ -219,7 +224,7 @@ void splexer_tokenize(Sp_Lexer *splexer) {
             case SPLEXER_TOKENIZE:
                 // if token was not consumed or inserted, we begin lexing current token
                 if ((tok_status = splexer_token_append(splexer, splexer->file.data + splexer->file_idx)) != 1) {
-                    // if (tok_status == 0) --splexer->file_idx;
+                    if (tok_status == 2) ++splexer->file_idx;
                     goto lex;
                 }
                 break;
@@ -227,7 +232,6 @@ void splexer_tokenize(Sp_Lexer *splexer) {
                 if (splexer->file.data[splexer->file_idx] != '\n') {
                     continue;
                 }
-                --splexer->file_idx;
                 splexer->state = SPLEXER_IDLE;
                 break;
             case SPLEXER_MULTICOMMENT:
@@ -239,6 +243,10 @@ void splexer_tokenize(Sp_Lexer *splexer) {
                 sp_log(SP_ERROR, "splexer_tokenize cannot continue as the lexer as terminated!");
                 return;
         }
+    }
+
+    if (!splexer->tok.sv.ptr) {
+        goto done;
     }
 
 lex:
