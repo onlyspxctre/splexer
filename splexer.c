@@ -1,5 +1,6 @@
 #include "splexer.h"
 #include <ctype.h>
+#include <stddef.h>
 
 bool splexer_char_is_valid_id(char c) {
     if (isalnum(c) || c == '_') {
@@ -206,6 +207,21 @@ void splexer_token_clear(Sp_Lexer *splexer) {
     };
 }
 
+// TODO: replace with more efficient binary search later
+long splexer_token_get_line(Sp_Lexer *splexer, const Sp_Lexer_Token *token) {
+    if (token->sv.ptr < splexer->file.data || token->sv.ptr >= splexer->file.data + splexer->file.count) {
+        return -1;
+    }
+    size_t token_start = (size_t) (token->sv.ptr - splexer->file.data);
+
+    long i = 0;
+    while (token_start > splexer->newlines.data[i]) {
+        ++i;
+    }
+
+    return i + 1;
+}
+
 void splexer_tokenize(Sp_Lexer *splexer) {
     sp_ht_node_t(&splexer->tok_table) *tok_query = NULL;
     int tok_status;
@@ -295,6 +311,7 @@ done:
 
 void splexer_destroy(Sp_Lexer *splexer) {
     sp_da_free(&splexer->file);
+    sp_da_free(&splexer->newlines);
 
     sp_ht_free(&splexer->tok_table);
 
