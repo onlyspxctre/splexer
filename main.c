@@ -19,7 +19,8 @@ int main(int argc, char** argv) {
     // printf("\n------------------------------------------------\n");
     printf("IR (Ast):\n");
     for (size_t i = 0; i < splexer.tokens.count; ++i) {
-        printf("Line %ld: ", splexer_token_get_line(&splexer, &splexer.tokens.data[i]));
+        Sp_Lexer_Token_Line data = splexer_token_get_line(&splexer, &splexer.tokens.data[i]);
+        printf("%ld:%ld =>", data.line, data.col);
         printf("\'" SP_SV_FMT "\': %s", sp_sv_arg(splexer.tokens.data[i].sv), SPLEXER_TOKENS_LITERAL[splexer.tokens.data[i].type]);
         if (splexer.tokens.data[i].type == TOK_FloatLiteral) {
             printf(" | value: %.2f | suffixes: \'%s\'", splexer.tokens.data[i].float_lit.value, splexer.tokens.data[i].float_lit.suffixes);

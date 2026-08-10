@@ -208,18 +208,26 @@ void splexer_token_clear(Sp_Lexer *splexer) {
 }
 
 // TODO: replace with more efficient binary search later
-long splexer_token_get_line(Sp_Lexer *splexer, const Sp_Lexer_Token *token) {
+Sp_Lexer_Token_Line splexer_token_get_line(Sp_Lexer *splexer, const Sp_Lexer_Token *token) {
     if (token->sv.ptr < splexer->file.data || token->sv.ptr >= splexer->file.data + splexer->file.count) {
-        return -1;
+        return (Sp_Lexer_Token_Line) {0};
     }
     size_t token_start = (size_t) (token->sv.ptr - splexer->file.data);
 
-    long i = 0;
-    while (token_start > splexer->newlines.data[i]) {
-        ++i;
+    Sp_Lexer_Token_Line data = {0};
+    while (token_start > splexer->newlines.data[data.line]) {
+        ++data.line;
     }
 
-    return i + 1;
+    if (data.line > 0) {
+        data.col = token_start - splexer->newlines.data[data.line - 1];
+    } else {
+        data.col = token_start + 1;
+    }
+
+    ++data.line; // data.line is zero-indexed; we want to return the line number one-indexed
+
+    return data;
 }
 
 void splexer_tokenize(Sp_Lexer *splexer) {

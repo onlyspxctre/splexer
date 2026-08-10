@@ -140,6 +140,11 @@ typedef struct {
     };
 } Sp_Lexer_Token;
 
+typedef struct {
+    size_t line;
+    size_t col;
+} Sp_Lexer_Token_Line;
+
 typedef enum {
     SPLEXER_IDLE,
     SPLEXER_TOKENIZE,
@@ -178,7 +183,7 @@ SPExtern int splexer_init(Sp_Lexer *splexer, const char *path);
  * */
 SPExtern int splexer_token_append(Sp_Lexer *splexer, const char *c);
 
-SPExtern long splexer_token_get_line(Sp_Lexer *splexer, const Sp_Lexer_Token *token);
+SPExtern Sp_Lexer_Token_Line splexer_token_get_line(Sp_Lexer *splexer, const Sp_Lexer_Token *token);
 
 SPExtern void splexer_token_clear(Sp_Lexer *splexer);
 
