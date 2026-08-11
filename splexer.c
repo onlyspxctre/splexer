@@ -209,6 +209,12 @@ void splexer_token_clear(Sp_Lexer *splexer) {
 
 // TODO: replace with more efficient binary search later
 Sp_Lexer_Token_Line splexer_token_get_line(Sp_Lexer *splexer, const Sp_Lexer_Token *token) {
+    if (!splexer || !token) {
+        return (Sp_Lexer_Token_Line) {
+            .line = SIZE_MAX,
+            .col = SIZE_MAX
+        };
+    }
     if (token->sv.ptr < splexer->file.data || token->sv.ptr >= splexer->file.data + splexer->file.count) {
         return (Sp_Lexer_Token_Line) {0};
     }
