@@ -8,6 +8,11 @@ EXAMPLES := assembler
 .PHONY: all clean $(EXAMPLES)
 
 WINDOWS ?= n
+
+ifneq ($(GRANULAR_TOK_UNKNOWN),)
+GRANULAR_TOK_UNKNOWN_FLAG := -DGRANULAR_TOK_UNKNOWN
+endif
+
 ifneq ($(WINDOWS), n)
 
 export CC := x86_64-w64-mingw32-gcc
@@ -41,7 +46,7 @@ endif
 
 $(OBJDIR)/%.o: %.c $(INCLUDEDIR)/sptl.h
 	mkdir -p $(OBJDIR)
-	$(CC) $(CFLAGS) -ggdb -fPIC -o $@ -c $<
+	$(CC) $(CFLAGS) -ggdb -fPIC $(GRANULAR_TOK_UNKNOWN_FLAG) -o $@ -c $<
 
 $(INCLUDEDIR)/sptl.h:
 	mkdir -p $(INCLUDEDIR)

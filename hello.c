@@ -2,6 +2,7 @@
 $
 $233
 #$1232
+$-dientifier
 
 extern int printf(const char* format, ...);
 

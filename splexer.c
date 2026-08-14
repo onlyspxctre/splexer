@@ -169,6 +169,11 @@ int splexer_token_append(Sp_Lexer *splexer, const char *c) {
                     break;
                 }
             }
+#ifdef GRANULAR_TOK_UNKNOWN
+            else {
+                return 0;
+            }
+#endif
             goto def;
         default:
         def:
