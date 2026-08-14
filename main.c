@@ -23,10 +23,10 @@ int main(int argc, char** argv) {
         printf("%ld:%ld =>", data.line, data.col);
         printf("\'" SP_SV_FMT "\': %s", sp_sv_arg(splexer.tokens.data[i].sv), SPLEXER_TOKENS_LITERAL[splexer.tokens.data[i].type]);
         if (splexer.tokens.data[i].type == TOK_FloatLiteral) {
-            printf(" | value: %.2f | suffixes: \'%s\'", splexer.tokens.data[i].float_lit.value, splexer.tokens.data[i].float_lit.suffixes);
+            printf(" | value: %.2f | suffixes: \'" SP_SV_FMT "\'", splexer.tokens.data[i].float_lit.value, sp_sv_arg(splexer.tokens.data[i].float_lit.suffixes));
         }
         else if (splexer.tokens.data[i].type == TOK_IntLiteral) {
-            printf(" | value: %ld | suffixes: \'%s\'", splexer.tokens.data[i].int_lit.value, splexer.tokens.data[i].int_lit.suffixes);
+            printf(" | value: %ld | suffixes: \'" SP_SV_FMT "\'", splexer.tokens.data[i].int_lit.value, sp_sv_arg(splexer.tokens.data[i].int_lit.suffixes));
         }
         putchar('\n');
     }

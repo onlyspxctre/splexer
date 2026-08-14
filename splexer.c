@@ -84,13 +84,13 @@ int splexer_token_append(Sp_Lexer *splexer, const char *c) {
             }
             break;
         case TOK_IntLiteral:
-            if (splexer->tok.int_lit.suffixes_count >= 31) {
-                return 2;
-            }
-
-            if (splexer->tok.int_lit.suffixes_count > 0 || isalpha(*c)) {
-                splexer->tok.int_lit.suffixes[splexer->tok.int_lit.suffixes_count++] = *c;
-                splexer->tok.int_lit.suffixes[splexer->tok.int_lit.suffixes_count] = '\0';
+            if (splexer->tok.int_lit.suffixes.count > 0 || isalpha(*c)) {
+                if (!splexer->tok.int_lit.suffixes.ptr) {
+                    splexer->tok.int_lit.suffixes.ptr = c;
+                    splexer->tok.int_lit.suffixes.count = 1;
+                } else {
+                    ++splexer->tok.int_lit.suffixes.count;
+                }
                 return 1;
             } else if (isdigit(*c)) {
                 break;
@@ -100,13 +100,13 @@ int splexer_token_append(Sp_Lexer *splexer, const char *c) {
             }
             return 0;
         case TOK_FloatLiteral:
-            if (splexer->tok.float_lit.suffixes_count >= 31) {
-                return 2;
-            }
-
-            if (splexer->tok.float_lit.suffixes_count > 0 || isalpha(*c)) {
-                splexer->tok.float_lit.suffixes[splexer->tok.float_lit.suffixes_count++] = *c;
-                splexer->tok.float_lit.suffixes[splexer->tok.float_lit.suffixes_count] = '\0';
+            if (splexer->tok.float_lit.suffixes.count > 0 || isalpha(*c)) {
+                if (!splexer->tok.float_lit.suffixes.ptr) {
+                    splexer->tok.float_lit.suffixes.ptr = c;
+                    splexer->tok.float_lit.suffixes.count = 1;
+                } else {
+                    ++splexer->tok.float_lit.suffixes.count;
+                }
                 return 1;
             } else if (isdigit(*c)) {
                 break;

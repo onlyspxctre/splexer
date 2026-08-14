@@ -129,13 +129,11 @@ typedef struct {
     union {
         struct {
             long value;
-            char suffixes[32];
-            size_t suffixes_count;
+            Sp_String_View suffixes;
         } int_lit;
         struct {
             double value;
-            char suffixes[32];
-            size_t suffixes_count;
+            Sp_String_View suffixes;
         } float_lit;
     };
 } Sp_Lexer_Token;
