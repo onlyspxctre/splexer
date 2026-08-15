@@ -84,7 +84,7 @@ int splexer_token_append(Sp_Lexer *splexer, const char *c) {
             }
             break;
         case TOK_IntLiteral:
-            if (splexer->tok.int_lit.suffixes.count > 0 || isalpha(*c)) {
+            if ((splexer->tok.int_lit.suffixes.count > 0 && isalnum(*c)) || isalpha(*c)) {
                 if (!splexer->tok.int_lit.suffixes.ptr) {
                     splexer->tok.int_lit.suffixes.ptr = c;
                     splexer->tok.int_lit.suffixes.count = 1;
@@ -100,7 +100,7 @@ int splexer_token_append(Sp_Lexer *splexer, const char *c) {
             }
             return 0;
         case TOK_FloatLiteral:
-            if (splexer->tok.float_lit.suffixes.count > 0 || isalpha(*c)) {
+            if ((splexer->tok.float_lit.suffixes.count > 0 && isalnum(*c)) || isalpha(*c)) {
                 if (!splexer->tok.float_lit.suffixes.ptr) {
                     splexer->tok.float_lit.suffixes.ptr = c;
                     splexer->tok.float_lit.suffixes.count = 1;
