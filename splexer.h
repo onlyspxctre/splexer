@@ -144,12 +144,18 @@ typedef struct {
 } Sp_Lexer_Token_Line;
 
 typedef enum {
-    SPLEXER_IDLE,
-    SPLEXER_TOKENIZE,
-    SPLEXER_COMMENT,
-    SPLEXER_MULTICOMMENT,
-    SPLEXER_TERMINATE,
+    SPLEXER_STATE_IDLE,
+    SPLEXER_STATE_TOKENIZE,
+    SPLEXER_STATE_COMMENT,
+    SPLEXER_STATE_MULTICOMMENT,
+    SPLEXER_STATE_TERMINATE,
 } Sp_Lexer_State;
+
+typedef enum {
+    SPLEXER_OK = 0,
+    SPLEXER_ERROR = 1,
+    SPLEXER_EOF = 2,
+} Sp_Lexer_Return_Code;
 
 typedef struct {
     Sp_String_Builder file;
@@ -185,7 +191,7 @@ SPExtern Sp_Lexer_Token_Line splexer_token_get_line(Sp_Lexer *splexer, const Sp_
 
 SPExtern void splexer_token_clear(Sp_Lexer *splexer);
 
-SPExtern void splexer_tokenize(Sp_Lexer *splexer);
+SPExtern Sp_Lexer_Return_Code splexer_tokenize(Sp_Lexer *splexer);
 SPExtern void splexer_destroy(Sp_Lexer *splexer);
 
 #endif

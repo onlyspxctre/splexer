@@ -10,8 +10,21 @@ int main(int argc, char** argv) {
 
     // Sp_String_Builder parsed = {0};
 
-    while (splexer.state != SPLEXER_TERMINATE) {
-        splexer_tokenize(&splexer);
+    Sp_Lexer_Return_Code code;
+    while ((code = splexer_tokenize(&splexer)) == SPLEXER_OK);
+
+    switch (code) {
+        case SPLEXER_ERROR:
+            if (splexer.state == SPLEXER_STATE_MULTICOMMENT) {
+                sp_log(SP_ERROR, "Unescaped multiline comment!");
+            } else {
+                sp_log(SP_ERROR, "Error occurred while tokenizing!");
+            }
+            return 1;
+        case SPLEXER_EOF:
+            break;
+        default:
+            sp_unreachable();
     }
 
     // printf("\n------------------------------------------------\n");

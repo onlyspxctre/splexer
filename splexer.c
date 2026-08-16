@@ -142,11 +142,11 @@ int splexer_token_append(Sp_Lexer *splexer, const char *c) {
             goto def; // we go to default generic operator handling
         case TOK_Slash:
             if (*c == '/') {
-                splexer->state = SPLEXER_COMMENT;
+                splexer->state = SPLEXER_STATE_COMMENT;
                 splexer_token_clear(splexer);
                 return 1;
             } else if (*c == '*') {
-                splexer->state = SPLEXER_MULTICOMMENT;
+                splexer->state = SPLEXER_STATE_MULTICOMMENT;
                 splexer_token_clear(splexer);
                 return 1;
             }
@@ -244,43 +244,47 @@ Sp_Lexer_Token_Line splexer_token_get_line(Sp_Lexer *splexer, const Sp_Lexer_Tok
     return data;
 }
 
-void splexer_tokenize(Sp_Lexer *splexer) {
+Sp_Lexer_Return_Code splexer_tokenize(Sp_Lexer *splexer) {
     sp_ht_node_t(&splexer->tok_table) *tok_query = NULL;
     int tok_status;
     for (; splexer->file_idx < splexer->file.count; ++splexer->file_idx) {
 
         switch (splexer->state) {
-            case SPLEXER_IDLE:
+            case SPLEXER_STATE_IDLE:
                 if (splexer->file.data[splexer->file_idx] == ' ') {
                     continue;
                 } else if (splexer->file.data[splexer->file_idx] == '\n') {
                     continue;
                 }
-                splexer->state = SPLEXER_TOKENIZE;
+                splexer->state = SPLEXER_STATE_TOKENIZE;
                 splexer_token_append(splexer, splexer->file.data + splexer->file_idx);
                 break;
-            case SPLEXER_TOKENIZE:
+            case SPLEXER_STATE_TOKENIZE:
                 // if token was not consumed or inserted, we begin lexing current token
                 if ((tok_status = splexer_token_append(splexer, splexer->file.data + splexer->file_idx)) != 1) {
                     if (tok_status == 2) ++splexer->file_idx;
                     goto lex;
                 }
                 break;
-            case SPLEXER_COMMENT:
+            case SPLEXER_STATE_COMMENT:
                 if (splexer->file.data[splexer->file_idx] != '\n') {
                     continue;
                 }
-                splexer->state = SPLEXER_IDLE;
+                splexer->state = SPLEXER_STATE_IDLE;
                 break;
-            case SPLEXER_MULTICOMMENT:
+            case SPLEXER_STATE_MULTICOMMENT:
                 if (splexer->file.data[splexer->file_idx - 1] == '*' && splexer->file.data[splexer->file_idx] == '/') {
-                    splexer->state = SPLEXER_IDLE;
+                    splexer->state = SPLEXER_STATE_IDLE;
                 }
                 break;
-            case SPLEXER_TERMINATE:
-                sp_log(SP_ERROR, "splexer_tokenize cannot continue as the lexer as terminated!");
-                return;
+            case SPLEXER_STATE_TERMINATE:
+                return SPLEXER_EOF;
         }
+    }
+
+    // Reached EOF without escaping a multicomment.
+    if (splexer->state == SPLEXER_STATE_MULTICOMMENT) {
+        return SPLEXER_ERROR;
     }
 
     if (!splexer->tok.sv.ptr) {
@@ -322,13 +326,14 @@ lex:
 
             /* The operator does not exist */
             sp_log(SP_ERROR, "splexer_tokenize could not find any matching operator! Terminating...");
-            splexer->state = SPLEXER_TERMINATE;
-            return;
+            splexer->state = SPLEXER_STATE_TERMINATE;
+            return SPLEXER_ERROR;
     }
 
 done:
     splexer_token_clear(splexer);
-    splexer->state = splexer->file_idx >= splexer->file.count ? SPLEXER_TERMINATE : SPLEXER_IDLE;
+    splexer->state = splexer->file_idx >= splexer->file.count ? SPLEXER_STATE_TERMINATE : SPLEXER_STATE_IDLE;
+    return splexer->file_idx >= splexer->file.count ? SPLEXER_EOF : SPLEXER_OK;
 }
 
 void splexer_destroy(Sp_Lexer *splexer) {
