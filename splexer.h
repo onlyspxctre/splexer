@@ -154,7 +154,7 @@ typedef enum {
 typedef struct {
     Sp_String_Builder file;
     size_t file_idx;
-    Sp_Dynamic_Array(size_t) newlines;
+    Sp_Dynamic_Array(size_t) eols;
 
     Sp_Hash_Table(Sp_String_View, Sp_Lexer_Tokens) tok_table;
 

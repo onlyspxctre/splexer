@@ -59,13 +59,16 @@ int splexer_init(Sp_Lexer *splexer, const char *path) {
 
     splexer_token_clear(splexer);
 
+    // TODO: fread byte-by-byte is slow, optimization needed
     char buffer;
-    for (size_t count = 0; fread(&buffer, 1, 1, f) != 0; ++count) {
+    size_t count;
+    for (count = 0; fread(&buffer, 1, 1, f) != 0; ++count) {
         if (buffer == '\n') {
-            sp_da_push(&splexer->newlines, count);
+            sp_da_push(&splexer->eols, count);
         }
         sp_sb_appendf(&splexer->file, "%c", buffer);
     }
+    sp_da_push(&splexer->eols, count);
 
     fclose(f);
     return 0;
@@ -226,12 +229,12 @@ Sp_Lexer_Token_Line splexer_token_get_line(Sp_Lexer *splexer, const Sp_Lexer_Tok
     size_t token_start = (size_t) (token->sv.ptr - splexer->file.data);
 
     Sp_Lexer_Token_Line data = {0};
-    while (token_start > splexer->newlines.data[data.line]) {
+    while (token_start > splexer->eols.data[data.line]) {
         ++data.line;
     }
 
     if (data.line > 0) {
-        data.col = token_start - splexer->newlines.data[data.line - 1];
+        data.col = token_start - splexer->eols.data[data.line - 1];
     } else {
         data.col = token_start + 1;
     }
@@ -330,7 +333,7 @@ done:
 
 void splexer_destroy(Sp_Lexer *splexer) {
     sp_da_free(&splexer->file);
-    sp_da_free(&splexer->newlines);
+    sp_da_free(&splexer->eols);
 
     sp_ht_free(&splexer->tok_table);
 
