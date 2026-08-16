@@ -273,6 +273,9 @@ Sp_Lexer_Return_Code splexer_tokenize(Sp_Lexer *splexer) {
                 splexer->state = SPLEXER_STATE_IDLE;
                 break;
             case SPLEXER_STATE_MULTICOMMENT:
+#ifdef NO_MULTICOMMENT
+                return SPLEXER_ERROR;
+#endif
                 if (splexer->file.data[splexer->file_idx - 1] == '*' && splexer->file.data[splexer->file_idx] == '/') {
                     splexer->state = SPLEXER_STATE_IDLE;
                 }

@@ -10,7 +10,11 @@ EXAMPLES := assembler
 WINDOWS ?= n
 
 ifneq ($(GRANULAR_TOK_UNKNOWN),)
-GRANULAR_TOK_UNKNOWN_FLAG := -DGRANULAR_TOK_UNKNOWN
+override EXTRAFLAGS += -DGRANULAR_TOK_UNKNOWN
+endif
+
+ifneq ($(NO_MULTICOMMENT),)
+override EXTRAFLAGS += -DNO_MULTICOMMENT
 endif
 
 ifneq ($(WINDOWS), n)
@@ -46,7 +50,7 @@ endif
 
 $(OBJDIR)/%.o: %.c $(INCLUDEDIR)/sptl.h
 	mkdir -p $(OBJDIR)
-	$(CC) $(CFLAGS) -ggdb -fPIC $(GRANULAR_TOK_UNKNOWN_FLAG) -o $@ -c $<
+	$(CC) $(CFLAGS) -ggdb -fPIC $(EXTRAFLAGS) -o $@ -c $<
 
 $(INCLUDEDIR)/sptl.h:
 	mkdir -p $(INCLUDEDIR)
