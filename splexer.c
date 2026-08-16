@@ -251,9 +251,7 @@ Sp_Lexer_Return_Code splexer_tokenize(Sp_Lexer *splexer) {
 
         switch (splexer->state) {
             case SPLEXER_STATE_IDLE:
-                if (splexer->file.data[splexer->file_idx] == ' ') {
-                    continue;
-                } else if (splexer->file.data[splexer->file_idx] == '\n') {
+                if (isspace(splexer->file.data[splexer->file_idx])) {
                     continue;
                 }
                 splexer->state = SPLEXER_STATE_TOKENIZE;
