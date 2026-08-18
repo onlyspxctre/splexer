@@ -2,12 +2,14 @@ export BUILDDIR := $(abspath ./build)
 export OBJDIR := $(abspath ./obj)
 export INCLUDEDIR := $(abspath ./include)
 
+export CC := clang
+export CFLAGS := -Wall -Wextra -std=c11 -fcolor-diagnostics -I$(INCLUDEDIR)
+export LDFLAGS := -fuse-ld=lld
+
 EXAMPLEDIR := ./examples
 EXAMPLES := assembler
 
 .PHONY: all clean $(EXAMPLES)
-
-WINDOWS ?= n
 
 ifneq ($(GRANULAR_TOK_UNKNOWN),)
 override EXTRAFLAGS += -DGRANULAR_TOK_UNKNOWN
@@ -17,40 +19,42 @@ ifneq ($(NO_MULTICOMMENT),)
 override EXTRAFLAGS += -DNO_MULTICOMMENT
 endif
 
-ifneq ($(WINDOWS), n)
+ifneq ($(WINDOWS),)
+CC +=  --target=x86_64-w64-mingw32 --sysroot=/usr/x86_64-w64-mingw32 
+LDFLAGS += -L/usr/lib/gcc/x86_64-w64-mingw32/16.1.0
 
-export CC := x86_64-w64-mingw32-gcc
-export CFLAGS := -Wall -Wextra -std=c11 -I$(INCLUDEDIR)
+all: $(BUILDDIR)/splexer.dll
 
-main.exe: main.c $(BUILDDIR)/libsplexer.dll
-	$(CC) $(CFLAGS) -ggdb -o $@ $< -L$(BUILDDIR) -I. -l:libsplexer.dll
+main.exe: main.c $(BUILDDIR)/splexer.dll
+	$(CC) $(CFLAGS) $(LDFLAGS) -ggdb -o $@ $< -L$(BUILDDIR) -I. -l:splexer.dll
 
-$(BUILDDIR)/lib%.dll: $(OBJDIR)/%.o
+$(BUILDDIR)/%.dll: $(OBJDIR)/%.o
 	mkdir -p $(BUILDDIR)
-	$(CC) -shared $< -o $@ -DSP_WIN32_EXPORT
+	$(CC) $(LDFLAGS) -shared $< -o $@ -Wl,--out-implib,$(BUILDDIR)/lib$*.dll.a -Wl,--output-def,$(BUILDDIR)/$*.def
+
+$(OBJDIR)/%.o: %.c $(INCLUDEDIR)/sptl.h
+	mkdir -p $(OBJDIR)
+	$(CC) $(CFLAGS) -ggdb -DSP_WIN32_EXPORT $(EXTRAFLAGS) -o $@ -c $<
 
 else
-export CC := clang
-export CFLAGS := -Wall -Wextra -std=c11 -fcolor-diagnostics -I$(INCLUDEDIR)
-
 all: $(BUILDDIR)/libsplexer.so $(BUILDDIR)/libsplexer.a
 
 main: main.c $(BUILDDIR)/libsplexer.so
-	$(CC) $(CFLAGS) -ggdb -o $@ $< -L$(BUILDDIR) -I. -l:libsplexer.so
+	$(CC) $(CFLAGS) $(LDFLAGS) -ggdb -o $@ $< -L$(BUILDDIR) -I. -l:libsplexer.so
 
 $(BUILDDIR)/lib%.so: $(OBJDIR)/%.o
 	mkdir -p $(BUILDDIR)
-	$(CC) -shared $< -o $@
+	$(CC) $(LDFLAGS) -shared $< -o $@
 
 $(BUILDDIR)/lib%.a: $(OBJDIR)/%.o
 	mkdir -p $(BUILDDIR)
 	ar rcs $@ $<
 
-endif
-
 $(OBJDIR)/%.o: %.c $(INCLUDEDIR)/sptl.h
 	mkdir -p $(OBJDIR)
 	$(CC) $(CFLAGS) -ggdb -fPIC $(EXTRAFLAGS) -o $@ -c $<
+
+endif
 
 $(INCLUDEDIR)/sptl.h:
 	mkdir -p $(INCLUDEDIR)

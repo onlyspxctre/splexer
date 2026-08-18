@@ -8,6 +8,29 @@ Simple lexer for C-style languages, written in C.
 
 The goal for this project is to write a simple but effective tokenizer that can be implemented to parse various C-style languages, with the eventual adoption into the implementation of **Glare** programming language compiler.
 
+
+## Building
+
+### Build Dependencies
+
+- Clang
+- lld
+- mingw-w64-gcc (for Windows builds)
+
+### Build Instructions
+
+To build, simply run:
+
+```sh
+make
+```
+
+If you would like to build Windows DLLs for whatever reason:
+
+```sh
+make WINDOWS=y
+```
+
 ## References
 
 [B compiler by Tsoding](https://github.com/tsoding/b/), motivation
