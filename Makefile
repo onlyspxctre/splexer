@@ -23,7 +23,7 @@ ifneq ($(WINDOWS),)
 CC +=  --target=x86_64-w64-mingw32 --sysroot=/usr/x86_64-w64-mingw32 
 LDFLAGS += -L/usr/lib/gcc/x86_64-w64-mingw32/16.1.0
 
-all: $(BUILDDIR)/splexer.dll
+all: $(BUILDDIR)/splexer.dll $(BUILDDIR)/libsplexer-win.a
 
 main.exe: main.c $(BUILDDIR)/splexer.dll
 	$(CC) $(CFLAGS) $(LDFLAGS) -ggdb -o $@ $< -L$(BUILDDIR) -I. -l:splexer.dll
@@ -31,6 +31,10 @@ main.exe: main.c $(BUILDDIR)/splexer.dll
 $(BUILDDIR)/%.dll: $(OBJDIR)/%.o
 	mkdir -p $(BUILDDIR)
 	$(CC) $(LDFLAGS) -shared $< -o $@ -Wl,--out-implib,$(BUILDDIR)/lib$*.dll.a -Wl,--output-def,$(BUILDDIR)/$*.def
+
+$(BUILDDIR)/lib%-win.a: $(OBJDIR)/%.o
+	mkdir -p $(BUILDDIR)
+	ar rcs $@ $<
 
 $(OBJDIR)/%.o: %.c $(INCLUDEDIR)/sptl.h
 	mkdir -p $(OBJDIR)
