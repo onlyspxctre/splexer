@@ -32,13 +32,17 @@ $(BUILDDIR)/%.dll: $(OBJDIR)/%.o
 	mkdir -p $(BUILDDIR)
 	$(CC) $(LDFLAGS) -shared $< -o $@ -Wl,--out-implib,$(BUILDDIR)/lib$*.dll.a -Wl,--output-def,$(BUILDDIR)/$*.def
 
-$(BUILDDIR)/lib%-win.a: $(OBJDIR)/%.o
+$(BUILDDIR)/lib%-win.a: $(OBJDIR)/%-static.o
 	mkdir -p $(BUILDDIR)
 	ar rcs $@ $<
 
 $(OBJDIR)/%.o: %.c $(INCLUDEDIR)/sptl.h
 	mkdir -p $(OBJDIR)
 	$(CC) $(CFLAGS) -ggdb -DSP_WIN32_EXPORT $(EXTRAFLAGS) -o $@ -c $<
+
+$(OBJDIR)/%-static.o: %.c $(INCLUDEDIR)/sptl.h
+	mkdir -p $(OBJDIR)
+	$(CC) $(CFLAGS) -ggdb -DSP_STATIC $(EXTRAFLAGS) -o $@ -c $<
 
 else
 all: $(BUILDDIR)/libsplexer.so $(BUILDDIR)/libsplexer.a
