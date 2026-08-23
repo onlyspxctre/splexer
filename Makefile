@@ -19,6 +19,12 @@ ifneq ($(NO_MULTICOMMENT),)
 override EXTRAFLAGS += -DNO_MULTICOMMENT
 endif
 
+ifneq ($(RELEASE),)
+CFLAGS += -O2 -flto
+else
+CFLAGS += -g
+endif
+
 ifneq ($(WINDOWS),)
 CC +=  --target=x86_64-w64-mingw32 --sysroot=/usr/x86_64-w64-mingw32 
 LDFLAGS += -L/usr/lib/gcc/x86_64-w64-mingw32/16.1.0
@@ -26,7 +32,7 @@ LDFLAGS += -L/usr/lib/gcc/x86_64-w64-mingw32/16.1.0
 all: $(BUILDDIR)/splexer.dll $(BUILDDIR)/libsplexer-win.a
 
 main.exe: main.c $(BUILDDIR)/splexer.dll
-	$(CC) $(CFLAGS) $(LDFLAGS) -ggdb -o $@ $< -L$(BUILDDIR) -I. -l:splexer.dll
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< -L$(BUILDDIR) -I. -l:splexer.dll
 
 $(BUILDDIR)/%.dll: $(OBJDIR)/%.o
 	mkdir -p $(BUILDDIR)
@@ -38,31 +44,31 @@ $(BUILDDIR)/lib%-win.a: $(OBJDIR)/%-static.o
 
 $(OBJDIR)/%.o: %.c $(INCLUDEDIR)/sptl.h
 	mkdir -p $(OBJDIR)
-	$(CC) $(CFLAGS) -ggdb -DSP_WIN32_EXPORT $(EXTRAFLAGS) -o $@ -c $<
-
-$(OBJDIR)/%-static.o: %.c $(INCLUDEDIR)/sptl.h
-	mkdir -p $(OBJDIR)
-	$(CC) $(CFLAGS) -ggdb -DSP_STATIC $(EXTRAFLAGS) -o $@ -c $<
+	$(CC) $(CFLAGS) -DSP_WIN32_EXPORT $(EXTRAFLAGS) -o $@ -c $<
 
 else
 all: $(BUILDDIR)/libsplexer.so $(BUILDDIR)/libsplexer.a
 
 main: main.c $(BUILDDIR)/libsplexer.so
-	$(CC) $(CFLAGS) $(LDFLAGS) -ggdb -o $@ $< -L$(BUILDDIR) -I. -l:libsplexer.so
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< -L$(BUILDDIR) -I. -l:libsplexer.so
 
 $(BUILDDIR)/lib%.so: $(OBJDIR)/%.o
 	mkdir -p $(BUILDDIR)
 	$(CC) $(LDFLAGS) -shared $< -o $@
 
-$(BUILDDIR)/lib%.a: $(OBJDIR)/%.o
+$(BUILDDIR)/lib%.a: $(OBJDIR)/%-static.o
 	mkdir -p $(BUILDDIR)
 	ar rcs $@ $<
 
 $(OBJDIR)/%.o: %.c $(INCLUDEDIR)/sptl.h
 	mkdir -p $(OBJDIR)
-	$(CC) $(CFLAGS) -ggdb -fPIC $(EXTRAFLAGS) -o $@ -c $<
+	$(CC) $(CFLAGS) -fPIC $(EXTRAFLAGS) -o $@ -c $<
 
 endif
+
+$(OBJDIR)/%-static.o: %.c $(INCLUDEDIR)/sptl.h
+	mkdir -p $(OBJDIR)
+	$(CC) $(CFLAGS) -DSP_STATIC $(EXTRAFLAGS) -o $@ -c $<
 
 $(INCLUDEDIR)/sptl.h:
 	mkdir -p $(INCLUDEDIR)
