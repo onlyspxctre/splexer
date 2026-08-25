@@ -26,7 +26,7 @@ CFLAGS += -g
 endif
 
 ifneq ($(WINDOWS),)
-CC +=  --target=x86_64-w64-mingw32 --sysroot=/usr/x86_64-w64-mingw32 
+CC +=  --target=x86_64-w64-mingw32 --sysroot=/usr/x86_64-w64-mingw32
 LDFLAGS += -L/usr/lib/gcc/x86_64-w64-mingw32/16.1.0
 
 all: $(BUILDDIR)/splexer.dll $(BUILDDIR)/libsplexer-win.a
@@ -84,5 +84,6 @@ clean:
 	rm -rf *.o
 	rm -rf *.exe
 	rm -rf main
-	rm -rf $(INCLUDEDIR)
 	rm -rf $(BUILDDIR)
+	rm -rf $(OBJDIR)
+	rm -rf $(INCLUDEDIR)
