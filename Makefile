@@ -3,6 +3,7 @@ export OBJDIR := $(abspath ./obj)
 export INCLUDEDIR := $(abspath ./include)
 
 export CC := clang
+export AR := llvm-ar
 export CFLAGS := -Wall -Wextra -std=c11 -fcolor-diagnostics -I$(INCLUDEDIR)
 export LDFLAGS := -fuse-ld=lld
 
@@ -39,7 +40,7 @@ $(BUILDDIR)/%.dll: $(OBJDIR)/%.o
 
 $(BUILDDIR)/lib%-win.a: $(OBJDIR)/%-static.o
 	mkdir -p $(BUILDDIR)
-	ar rcs $@ $<
+	$(AR) rcs $@ $<
 
 $(OBJDIR)/%.o: %.c $(INCLUDEDIR)/sptl.h
 	mkdir -p $(OBJDIR)
@@ -57,7 +58,7 @@ $(BUILDDIR)/lib%.so: $(OBJDIR)/%.o
 
 $(BUILDDIR)/lib%.a: $(OBJDIR)/%-static.o
 	mkdir -p $(BUILDDIR)
-	ar rcs $@ $<
+	$(AR) rcs $@ $<
 
 $(OBJDIR)/%.o: %.c $(INCLUDEDIR)/sptl.h
 	mkdir -p $(OBJDIR)
