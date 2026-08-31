@@ -1,6 +1,7 @@
 export BUILDDIR := $(abspath ./build)
 export OBJDIR := $(abspath ./obj)
 export INCLUDEDIR := $(abspath ./include)
+DEPSDIR := $(abspath ./deps)
 
 export CC := clang
 export AR := llvm-ar
@@ -9,6 +10,9 @@ export LDFLAGS := -fuse-ld=lld
 
 EXAMPLEDIR := ./examples
 EXAMPLES := assembler
+
+SPTL_VERSION := dc90d34
+SPTL_DIR := $(DEPSDIR)/sptl.h-$(SPTL_VERSION)
 
 .PHONY: all clean $(EXAMPLES)
 
@@ -70,9 +74,14 @@ $(OBJDIR)/%-static.o: %.c $(INCLUDEDIR)/sptl.h
 	mkdir -p $(OBJDIR)
 	$(CC) $(CFLAGS) -DSP_STATIC $(EXTRAFLAGS) -o $@ -c $<
 
-$(INCLUDEDIR)/sptl.h:
+$(INCLUDEDIR)/sptl.h: $(SPTL_DIR).tar.gz
 	mkdir -p $(INCLUDEDIR)
-	cd $(INCLUDEDIR) && curl -O https://raw.githubusercontent.com/onlyspxctre/sptl.h/refs/heads/master/sptl.h
+	cp $(SPTL_DIR)/sptl.h $@
+
+$(SPTL_DIR).tar.gz:
+	mkdir -p $(SPTL_DIR)
+	curl -fsSL -o $(SPTL_DIR).tar.gz https://github.com/onlyspxctre/sptl.h/archive/$(SPTL_VERSION).tar.gz
+	tar xf $(SPTL_DIR).tar.gz -C $(SPTL_DIR) --strip-components=1
 
 valgrind: main
 	LD_LIBRARY_PATH=./build valgrind --leak-check=full --track-origins=yes ./main
